@@ -7,8 +7,10 @@ requires-python = ">=3.11"
 dependencies = [
     "ipykernel>=7.0.1",
     "numpy>=2.3.4",
+    "python-dotenv>=1.1.1",
     "structlog>=25.4.0",
     "torch>=2.9.0",
+    "transformers>=4.57.1",
 ]
 
 [tool.setuptools]
