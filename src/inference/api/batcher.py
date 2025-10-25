@@ -54,9 +54,12 @@ class DynamicBatcher:
 
         # long-lived worker tasks
         self.worker_tasks: List[asyncio.Task] = []
-        
+
         self.inflight_batches = 0
         self._started = False
+
+    def is_started(self):
+        return self._started
 
     async def start(self):
         """Start worker pool - call during app startup"""

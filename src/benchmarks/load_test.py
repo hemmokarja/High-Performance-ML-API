@@ -7,7 +7,7 @@ from typing import List, Any, Dict, Optional
 import numpy as np
 import structlog
 
-from inference.batcher import DynamicBatcher, NoBatchingWrapper
+from inference.api.batcher import DynamicBatcher, NoBatchingWrapper
 
 logger = structlog.get_logger(__name__)
 

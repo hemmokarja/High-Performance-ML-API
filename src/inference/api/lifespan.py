@@ -1,0 +1,62 @@
+from contextlib import asynccontextmanager
+from typing import Callable
+
+import structlog
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from inference.api.batcher import DynamicBatcher
+
+logger = structlog.get_logger(__name__)
+
+
+def create_lifespan(
+    model_factory: Callable[[], BaseModel],
+    max_batch_size: int,
+    batch_interval: float,
+    num_workers: int
+):
+    """
+    Create a lifespan for app.
+
+    Usage:
+
+        lifespan_fn = create_model_lifespan(
+            model_factory=lambda: HugginFaceEmbeddingModel(MODEL_NAME, HF_TOKEN),
+            max_batch_size=32,
+            ...
+        )
+        app = FastAPI(lifespan=lifespan_fn)
+
+    """
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Manage application lifecycle - startup and shutdown"""
+        try:
+            model = model_factory()
+            batcher = DynamicBatcher(
+                model=model,
+                max_batch_size=max_batch_size,
+                batch_interval=batch_interval,
+                num_workers=num_workers
+            )
+            await batcher.start()
+
+            app.state.model = model
+            app.state.batcher = batcher
+
+            logger.info("Model API started successfully")
+
+        except Exception as e:
+            logger.error("Failed to start model API", error=str(e))
+            raise
+
+        yield
+
+        logger.info("Shutting down model API")    
+        if hasattr(app.state, "batcher") and app.state.batcher:
+            await app.state.batcher.shutdown()
+
+        logger.info("Model API shutdown complete")
+    
+    return lifespan
