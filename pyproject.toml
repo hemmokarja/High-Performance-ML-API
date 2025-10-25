@@ -16,7 +16,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["load_tests*", "server*"]
+include = ["benchmarks*", "inference*"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
