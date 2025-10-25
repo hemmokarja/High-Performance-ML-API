@@ -1,13 +1,9 @@
 import os
-from contextlib import asynccontextmanager
-from typing import List, Optional
 
 import structlog
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, field_validator
+from fastapi import FastAPI
 
 from inference.models.hugginface import HugginFaceEmbeddingModel
 
