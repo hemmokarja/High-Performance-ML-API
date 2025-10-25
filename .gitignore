@@ -11,3 +11,6 @@ wheels/
 
 # dev notebooks
 _*.ipynb
+
+# dotenv
+.env
