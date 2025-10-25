@@ -1,0 +1,211 @@
+import asyncio
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import List, Any
+
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class Request:
+    id: int
+    data: Any
+    future: asyncio.Future
+
+
+class DynamicBatcher:
+    """
+    Batches multiple inference requests together to improve throughput.
+
+    This class collects incoming prediction requests into batches and processes
+    them together, which is much more efficient for ML models than processing
+    requests one-by-one (especially for GPU inference).
+
+    How it works:
+    - Start long-lived background workers that continuously process requests
+    - When predict() is called, the request is added to a queue
+    - Workers collect requests into batches until either:
+        * The batch reaches max_batch_size, OR
+        * batch_interval time has elapsed since the first request
+    - The batch is then processed by the model in a separate thread pool (this allows
+      background workers to collect batches while model does inference)
+    - Results are returned to the original callers via their futures
+    """
+    def __init__(
+        self, 
+        model,
+        max_batch_size: int = 32,
+        batch_interval: float = 0.01,
+        num_workers: int = 1
+    ):
+        self.model = model
+        self.max_batch_size = max_batch_size
+        self.batch_interval = batch_interval
+        self.num_workers = num_workers
+
+        # use asyncio.Queue (thread-safe, proper async primitive)
+        self.request_queue = asyncio.Queue()
+
+        # thread pool for blocking model inference
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="infer")
+
+        # long-lived worker tasks
+        self.worker_tasks: List[asyncio.Task] = []
+        
+        self.inflight_batches = 0
+        self._started = False
+
+    async def start(self):
+        """Start worker pool - call during app startup"""
+        if self._started:
+            return
+
+        self._started = True
+        loop = asyncio.get_event_loop()
+
+        # create fixed pool of workers
+        for i in range(self.num_workers):
+            task = asyncio.create_task(
+                self._inference_worker(loop, worker_id=i)
+            )
+            self.worker_tasks.append(task)
+
+    async def shutdown(self):
+        """Graceful shutdown - call during app teardown"""
+        if not self._started:
+            return
+
+        # send sentinel values to signal workers to stop
+        for _ in range(self.num_workers):
+            await self.request_queue.put(None)
+
+        # wait for all workers to finish
+        for task in self.worker_tasks:
+            await task
+
+        # shutdown thread pool
+        self.executor.shutdown(wait=True)
+
+    async def predict(self, data: Any) -> Any:
+        if not self._started:
+            raise RuntimeError("Batcher not started. Call start() first.")
+
+        future = asyncio.Future()
+        request = Request(id=id(data), data=data, future=future)
+
+        await self.request_queue.put(request)
+        return await future
+
+    async def _inference_worker(self, loop, worker_id: int):
+        """Long-lived worker that processes batches"""
+        while True:
+            # wait for first request (blocking)
+            first_item = await self.request_queue.get()
+
+            # check for shutdown sentinel
+            if first_item is None:
+                return
+
+            # start batch with first request
+            batch = [first_item]
+            batch_start = time.time()
+            deadline = batch_start + self.batch_interval
+
+            # collect more requests until timeout or batch full
+            while len(batch) < self.max_batch_size:
+                remaining_time = deadline - time.time()
+
+                # if we've exceeded the timeout, process what we have
+                if remaining_time <= 0:
+                    break
+
+                try:
+                    # wait for next request with timeout
+                    item = await asyncio.wait_for(
+                        self.request_queue.get(),
+                        timeout=remaining_time
+                    )
+
+                    # check for shutdown sentinel and process current batch before
+                    # exiting if exist
+                    if item is None:
+                        if batch:
+                            await self._process_batch(loop, batch, worker_id)
+                        return
+
+                    batch.append(item)
+
+                except asyncio.TimeoutError:
+                    # timeout reached, process what we have
+                    break
+
+            # process the batch
+            wait_time_ms = (time.time() - batch_start) * 1000
+            await self._process_batch(loop, batch, worker_id, wait_time_ms)
+
+    async def _process_batch(
+        self, loop, batch: List[Request], worker_id: int, wait_time_ms: float = 0
+    ):
+        start_time = time.time()
+        batch_data = [req.data for req in batch]
+
+        self.inflight_batches += 1
+        try:
+            # execute blocking inference in a separate thread pool to not block
+            # event loop
+            results = await loop.run_in_executor(
+                self.executor,
+                self.model.predict,
+                batch_data
+            )
+        except Exception as e:
+            # set exception on all futures
+            for req in batch:
+                if not req.future.done():
+                    req.future.set_exception(e)
+            return
+        finally:
+            self.inflight_batches -= 1
+
+        end_time = time.time()
+        inference_time_ms = (end_time - start_time) * 1000
+
+        logger.info(
+            "Batch processed",
+            worker_id=worker_id,
+            batch_size=len(batch),
+            wait_ms=round(wait_time_ms, 1),
+            inference_ms=round(inference_time_ms, 1),
+        )
+
+        # return results to waiting futures
+        for req, result in zip(batch, results):
+            if not req.future.done():
+                req.future.set_result(result)
+
+
+class NoBatchingWrapper:
+    """Wrapper that processes requests individually"""
+    def __init__(self, model):
+        self.model = model
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="infer")
+        self._started = False
+
+    async def start(self):
+        self._started = True
+    
+    async def shutdown(self):
+        self.executor.shutdown(wait=True)
+
+    async def predict(self, data: Any) -> Any:
+        """Process single request in thread pool"""
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            self.executor,
+            self.model.predict,
+            [data]
+        )
+        return results[0]
