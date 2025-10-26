@@ -1,15 +1,31 @@
-.PHONY: start-api load-test
+.PHONY: start-api-local load-test docker-build docker-up docker-down
 
-API_PORT=8001
+PORT?=8001
+MAX_BATCH_SIZE?=32
+BATCH_TIMEOUT?=0.01
+NUM_BATCHING_WORKERS?=2
 
-start-api:
+start-api-local:
 	@uv run python src/inference/api/app.py \
 		--host 0.0.0.0 \
-		--port $(API_PORT) \
-		--max-batch-size 32 \
-		--batch-timeout 0.01 \
-		--num-batching-workers 2
+		--port $(PORT) \
+		--max-batch-size $(MAX_BATCH_SIZE) \
+		--batch-timeout $(BATCH_TIMEOUT) \
+		--num-batching-workers $(NUM_BATCHING_WORKERS)
 
 load-test:
-	@./scripts/load-test.sh -H localhost -P $(API_PORT) -u 50 -r 10 -d "30s"
+	@./scripts/load-test.sh -H localhost -P $(PORT) -u 50 -r 10 -d "30s"
 	@open reports/latest.html
+
+docker-build:
+	@docker-compose build
+
+docker-up:
+	@PORT=$(PORT) \
+	MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
+	BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
+	NUM_BATCHING_WORKERS=$(NUM_BATCHING_WORKERS) \
+	docker-compose up -d
+
+docker-down:
+	@docker-compose down
