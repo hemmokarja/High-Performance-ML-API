@@ -8,24 +8,18 @@ logger = structlog.get_logger(__name__)
 
 class EmbedRequest(BaseModel):
     """Request schema for embedding generation"""
-    sentence: str = Field(  # Singular!
+    input_text: str = Field(  # Singular!
         ...,
         min_length=1,
-        description="Single sentence to embed"
+        description="Input text to embed"
     )
 
-    @field_validator("sentence")
+    @field_validator("input_text")
     @classmethod
-    def validate_sentence(cls, v: str) -> str:
+    def validate_input_text(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("Sentence cannot be empty")
+            raise ValueError("Input text cannot be empty")
         return v.strip()
-
-
-class EmbedResponse(BaseModel):
-    """Response schema for embedding generation"""
-    embedding: List[float]  # Single embedding
-    model: str
 
 
 class EmbedResponse(BaseModel):

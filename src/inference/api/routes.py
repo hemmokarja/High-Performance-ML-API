@@ -54,16 +54,16 @@ async def _readiness_check(request: Request):
     return {"status": "ready"}
 
 
-async def _embed_sentence(embed_request: EmbedRequest, request: Request):
+async def _embed_text(embed_request: EmbedRequest, request: Request):
     """
-    Generate embeddings for sentence.
+    Generate embeddings for input text.
     
-    This endpoint accepts a sentence and returns its embeddings.
+    This endpoint accepts a input text and returns its embeddings.
     Requests are automatically batched for efficient inference.
     """
     model, batcher = _ensure_service_ready(request)
     try:
-        emb = await batcher.predict(embed_request.sentence)
+        emb = await batcher.predict(embed_request.input_text)
         return EmbedResponse(embedding=emb.tolist(), model=model.model_name)
 
     except asyncio.TimeoutError:
@@ -113,7 +113,7 @@ def register_routes(app: FastAPI):
 
     app.add_api_route(
         "/embed",
-        _embed_sentence,
+        _embed_text,
         methods=["POST"],
         response_model=EmbedResponse,
     )

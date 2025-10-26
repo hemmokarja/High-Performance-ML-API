@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.120.0",
     "httpx>=0.28.1",
     "ipykernel>=7.0.1",
+    "locust>=2.42.0",
     "numpy>=2.3.4",
     "python-dotenv>=1.1.1",
     "structlog>=25.4.0",

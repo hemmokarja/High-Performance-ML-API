@@ -9,8 +9,7 @@ wheels/
 # Virtual environments
 .venv
 
-# dev notebooks
+# Other
 _*.ipynb
-
-# dotenv
 .env
+reports

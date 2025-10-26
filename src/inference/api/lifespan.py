@@ -5,7 +5,7 @@ import structlog
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from inference.api.batcher import DynamicBatcher
+from inference.api.batcher import DynamicBatcher, NoBatchingWrapper
 
 logger = structlog.get_logger(__name__)
 
@@ -13,8 +13,9 @@ logger = structlog.get_logger(__name__)
 def create_lifespan(
     model_factory: Callable[[], BaseModel],
     max_batch_size: int,
-    batch_interval: float,
-    num_workers: int
+    batch_timeout: float,
+    num_workers: int,
+    batcher_cls: DynamicBatcher | NoBatchingWrapper = DynamicBatcher
 ):
     """
     Create a lifespan for app.
@@ -30,14 +31,14 @@ def create_lifespan(
 
     """
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def _lifespan(app: FastAPI):
         """Manage application lifecycle - startup and shutdown"""
         try:
             model = model_factory()
-            batcher = DynamicBatcher(
+            batcher = batcher_cls(
                 model=model,
                 max_batch_size=max_batch_size,
-                batch_interval=batch_interval,
+                batch_timeout=batch_timeout,
                 num_workers=num_workers
             )
             await batcher.start()
@@ -59,4 +60,4 @@ def create_lifespan(
 
         logger.info("Model API shutdown complete")
     
-    return lifespan
+    return _lifespan
