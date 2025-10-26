@@ -36,7 +36,9 @@ class HugginFaceEmbeddingModel:
         return [emb[i] for i in range(emb.shape[0])]
 
     @staticmethod
-    def _mean_pool(latent_emb, attention_mask: torch.Tensor):
+    def _mean_pool(
+        latent_emb: torch.Tensor, attention_mask: torch.Tensor
+    ) -> torch.Tensor:
         """
         Mean pool last hidden states into a single embedding, accounting for different
         length sequences.
