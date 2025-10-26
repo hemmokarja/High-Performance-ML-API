@@ -8,7 +8,7 @@ logger = structlog.get_logger(__name__)
 
 class EmbedRequest(BaseModel):
     """Request schema for embedding generation"""
-    input_text: str = Field(  # Singular!
+    input_text: str = Field(
         ...,
         min_length=1,
         description="Input text to embed"
