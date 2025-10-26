@@ -29,7 +29,7 @@ class DynamicBatcher:
     - When predict() is called, the request is added to a queue
     - Workers collect requests into batches until either:
         * The batch reaches max_batch_size, OR
-        * batch_interval time has elapsed since the first request
+        * batch_timeout time has elapsed since the first request
     - The batch is then processed by the model in a separate thread pool (this allows
       background workers to collect batches while model does inference)
     - Results are returned to the original callers via their futures
@@ -38,12 +38,12 @@ class DynamicBatcher:
         self, 
         model,
         max_batch_size: int = 32,
-        batch_interval: float = 0.01,
+        batch_timeout: float = 0.01,
         num_workers: int = 1
     ):
         self.model = model
         self.max_batch_size = max_batch_size
-        self.batch_interval = batch_interval
+        self.batch_timeout = batch_timeout
         self.num_workers = num_workers
 
         # use asyncio.Queue (thread-safe, proper async primitive)
@@ -54,9 +54,12 @@ class DynamicBatcher:
 
         # long-lived worker tasks
         self.worker_tasks: List[asyncio.Task] = []
-        
+
         self.inflight_batches = 0
         self._started = False
+
+    def is_started(self):
+        return self._started
 
     async def start(self):
         """Start worker pool - call during app startup"""
@@ -69,7 +72,7 @@ class DynamicBatcher:
         # create fixed pool of workers
         for i in range(self.num_workers):
             task = asyncio.create_task(
-                self._inference_worker(loop, worker_id=i)
+                self._batch_collector(loop, worker_id=i)
             )
             self.worker_tasks.append(task)
 
@@ -99,7 +102,7 @@ class DynamicBatcher:
         await self.request_queue.put(request)
         return await future
 
-    async def _inference_worker(self, loop, worker_id: int):
+    async def _batch_collector(self, loop, worker_id: int):
         """Long-lived worker that processes batches"""
         while True:
             # wait for first request (blocking)
@@ -112,7 +115,7 @@ class DynamicBatcher:
             # start batch with first request
             batch = [first_item]
             batch_start = time.time()
-            deadline = batch_start + self.batch_interval
+            deadline = batch_start + self.batch_timeout
 
             # collect more requests until timeout or batch full
             while len(batch) < self.max_batch_size:
@@ -189,10 +192,13 @@ class DynamicBatcher:
 
 class NoBatchingWrapper:
     """Wrapper that processes requests individually"""
-    def __init__(self, model):
+    def __init__(self, model, **kwargs):
         self.model = model
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="infer")
         self._started = False
+
+    def is_started(self):
+        return self._started
 
     async def start(self):
         self._started = True
