@@ -1,0 +1,30 @@
+services:
+  model-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: model-api
+    ports:
+      - "${PORT:-8001}:${PORT:-8001}"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - PORT=${PORT:-8001}
+      - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-32}
+      - BATCH_TIMEOUT=${BATCH_TIMEOUT:-0.01}
+      - NUM_BATCHING_WORKERS=${NUM_BATCHING_WORKERS:-2}
+    volumes:
+      # mount cache directory for HuggingFace models to avoid re-downloading
+      - huggingface-cache:/home/apiuser/.cache/huggingface
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+        reservations:
+          cpus: "2"
+          memory: 2G
+
+volumes:
+  huggingface-cache:
+    driver: local
