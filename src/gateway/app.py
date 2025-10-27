@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from gateway.api import exception_handlers, routes, lifespan as lifespan_module
 from gateway.auth.api_key_db import ApiKeyDB
 from gateway.auth.rate_limiter import SlidingWindowRateLimiter
-from gateway.auth.middleware import AuthMiddleware
+from gateway.auth.auth import AuthService
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
@@ -113,7 +113,7 @@ def _create_app(
     """
     api_key_db = ApiKeyDB()
     rate_limiter = SlidingWindowRateLimiter()
-    auth_middleware = AuthMiddleware(api_key_db, rate_limiter)
+    auth_service = AuthService(api_key_db, rate_limiter)
 
     _initialize_dev_api_key(api_key_db, rate_limit_minute, rate_limit_hour)
 
@@ -142,7 +142,7 @@ def _create_app(
     )
 
     exception_handlers.register_exception_handlers(app)
-    routes.register_routes(app, auth_middleware.verify_api_key)
+    routes.register_routes(app, auth_service.verify_api_key)
 
     logger.info(
         "FastAPI application created",

@@ -10,7 +10,7 @@ logger = structlog.get_logger(__name__)
 security = HTTPBearer()
 
 
-class AuthMiddleware:
+class AuthService:
     """
     Authentication and rate limiting middleware for API Gateway.
 
@@ -19,7 +19,7 @@ class AuthMiddleware:
     def __init__(self, api_key_db: ApiKeyDB, rate_limiter: SlidingWindowRateLimiter):
         self.api_key_db = api_key_db
         self.rate_limiter = rate_limiter
-        logger.info("AuthMiddleware initialized")
+        logger.info("AuthService initialized")
 
     async def verify_api_key(
         self, credentials: HTTPAuthorizationCredentials = Security(security)
