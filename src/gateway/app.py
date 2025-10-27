@@ -57,12 +57,6 @@ def parse_args():
         default=DEFAULT_RATE_LIMIT_HOUR,
         help="Default requests per hour rate limit",
     )
-    parser.add_argument(
-        "--cors-origins",
-        type=str,
-        default="*",
-        help="CORS allowed origins (comma-separated, or * for all)",
-    )
     return parser.parse_args()
 
 
@@ -97,7 +91,6 @@ def _create_app(
     inference_url: str,
     rate_limit_minute: int,
     rate_limit_hour: int,
-    cors_origins: str
 ) -> FastAPI:
     """
     Create and configure the FastAPI application.
@@ -152,7 +145,6 @@ def main():
         inference_url=args.inference_url,
         rate_limit_minute=args.rate_limit_minute,
         rate_limit_hour=args.rate_limit_hour,
-        cors_origins=args.cors_origins
     )
 
     logger.info(

@@ -9,7 +9,6 @@ Professional API Gateway with authentication and rate limiting for the ML infere
 - ✅ **Professional Error Handling**: Comprehensive error responses with proper HTTP status codes
 - ✅ **Usage Tracking**: Monitor your API usage in real-time
 - ✅ **Health Checks**: Kubernetes-ready health and readiness endpoints
-- ✅ **CORS Support**: Configurable cross-origin resource sharing
 
 ## Architecture
 
@@ -154,7 +153,6 @@ Readiness check for Kubernetes (no auth required).
 --inference-url         Inference service URL (default: http://localhost:8001)
 --rate-limit-minute     Requests per minute limit (default: 60)
 --rate-limit-hour       Requests per hour limit (default: 1000)
---cors-origins          CORS allowed origins (default: *)
 ```
 
 ## Key Management
