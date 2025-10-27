@@ -5,7 +5,6 @@ import structlog
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from gateway.api import exception_handlers, routes, lifespan as lifespan_module
 from gateway.auth.api_key_db import ApiKeyDB
