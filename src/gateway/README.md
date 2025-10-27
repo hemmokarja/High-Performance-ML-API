@@ -146,16 +146,6 @@ Readiness check for Kubernetes (no auth required).
 
 ## Configuration
 
-### Environment Variables
-
-```bash
-# Persist your API key across restarts
-export TEST_API_KEY="sk_live_XXXXXXXXX"
-
-# Configure inference service URL
-export INFERENCE_SERVICE_URL="http://inference:8001"
-```
-
 ### Command Line Arguments
 
 ```
@@ -168,16 +158,6 @@ export INFERENCE_SERVICE_URL="http://inference:8001"
 ```
 
 ## Key Management
-
-### Generate API Keys
-
-```bash
-# Generate a new key
-python -m gateway.utils.key_management generate
-
-# Generate with custom prefix
-python -m gateway.utils.key_management generate --prefix sk_test
-```
 
 ### Key Format
 
@@ -267,25 +247,3 @@ Interactive API documentation is available at:
 
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
-
-## Testing
-
-```bash
-# Run with test configuration
-python -m gateway.app \
-  --rate-limit-minute 10 \
-  --rate-limit-hour 100
-
-# Test rate limiting
-for i in {1..15}; do
-  curl -X POST http://localhost:8000/v1/embed \
-    -H "Authorization: Bearer $API_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{"input_text": "test"}'
-  echo ""
-done
-```
-
-## License
-
-This is a personal project for learning and experimentation.

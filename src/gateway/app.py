@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument(
         "--inference-url",
         type=str,
-        default=os.getenv("INFERENCE_SERVICE_URL", DEFAULT_INFERENCE_URL),
+        default=DEFAULT_INFERENCE_URL,
         help="URL of the inference service",
     )
     parser.add_argument(
