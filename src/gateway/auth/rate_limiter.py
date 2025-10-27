@@ -1,9 +1,9 @@
-import structlog
+import datetime
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -143,7 +143,7 @@ class SlidingWindowRateLimiter:
         return {
             "requests_last_minute": minute_count,
             "requests_last_hour": hour_count,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
 
     def reset_user(self, user_id: str) -> None:

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
-import structlog
+
 import httpx
+import structlog
 from fastapi import FastAPI
 
 from gateway.auth.api_key_db import ApiKeyDB
@@ -16,15 +17,7 @@ def create_lifespan(
 ):
     """
     Create a lifespan context manager for the gateway app.
-    
-    Usage:
-        lifespan_fn = create_lifespan(
-            inference_service_url="http://localhost:8001",
-            api_key_db=api_key_db,
-            rate_limiter=rate_limiter
-        )
-        app = FastAPI(lifespan=lifespan_fn)
-    
+
     Args:
         inference_service_url: URL of the inference service
         api_key_db: API key database instance

@@ -1,6 +1,8 @@
 from typing import List, Optional
-import structlog
+
 from pydantic import BaseModel, Field, field_validator
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 

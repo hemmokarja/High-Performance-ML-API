@@ -1,6 +1,7 @@
-import structlog
 import httpx
+import structlog
 from fastapi import FastAPI, HTTPException, Request, Depends, status
+
 from gateway.api.schemas import EmbedRequest, EmbedResponse, HealthResponse
 
 logger = structlog.get_logger(__name__)

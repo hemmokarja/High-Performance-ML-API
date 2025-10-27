@@ -1,8 +1,9 @@
 import hashlib
 import secrets
-import structlog
 from datetime import datetime, timezone
 from typing import Optional
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
