@@ -5,10 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: model-api
     ports:
-      - "${PORT:-8001}:${PORT:-8001}"
+      - "${INFERENCE_PORT:-8001}:${INFERENCE_PORT:-8001}"
     environment:
       - HF_TOKEN=${HF_TOKEN}
-      - PORT=${PORT:-8001}
+      - PORT=${INFERENCE_PORT:-8001}
       - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-32}
       - BATCH_TIMEOUT=${BATCH_TIMEOUT:-0.01}
       - NUM_BATCHING_WORKERS=${NUM_BATCHING_WORKERS:-2}
