@@ -34,7 +34,7 @@ EXPOSE ${PORT:-8001}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD uv run python -c "import os, requests; port=os.getenv('PORT', '8001'); requests.get(f'http://localhost:{port}/health')" || exit 1
 
-CMD uv run python -m src.inference.api.app \
+CMD uv run python -m src.inference.app \
     --host 0.0.0.0 \
     --port ${PORT:-8001} \
     --max-batch-size ${MAX_BATCH_SIZE:-32} \

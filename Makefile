@@ -6,7 +6,7 @@ BATCH_TIMEOUT?=0.01
 NUM_BATCHING_WORKERS?=2
 
 start-api-local:
-	@uv run python src/inference/api/app.py \
+	@uv run python src/inference/app.py \
 		--host 0.0.0.0 \
 		--port $(PORT) \
 		--max-batch-size $(MAX_BATCH_SIZE) \
