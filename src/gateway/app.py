@@ -132,15 +132,6 @@ def _create_app(
         redoc_url="/redoc",
     )
 
-    origins = cors_origins.split(",") if cors_origins != "*" else ["*"]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
     exception_handlers.register_exception_handlers(app)
     routes.register_routes(app, auth_service.verify_api_key)
 
@@ -149,7 +140,6 @@ def _create_app(
         inference_url=inference_url,
         rate_limit_minute=rate_limit_minute,
         rate_limit_hour=rate_limit_hour,
-        cors_origins=origins
     )
 
     return app
