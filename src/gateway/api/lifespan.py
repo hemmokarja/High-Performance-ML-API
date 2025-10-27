@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
 import structlog
+import httpx
 from fastapi import FastAPI
 
 from gateway.auth.api_key_db import ApiKeyDB
 from gateway.auth.rate_limiter import SlidingWindowRateLimiter
-from gateway.auth import middleware
 
 logger = structlog.get_logger(__name__)
 
@@ -39,12 +39,9 @@ def create_lifespan(
             app.state.api_key_db = api_key_db
             app.state.rate_limiter = rate_limiter
 
-            app.state.verify_api_key = middleware.create_auth_dependency(
-                api_key_db, rate_limiter
-            )
+            limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
+            app.state.http_client = httpx.AsyncClient(timeout=30.0, limits=limits)
 
-            # Initialize HTTP client for inference service
-            # Note: In production, use a persistent httpx.AsyncClient            
             logger.info(
                 "API Gateway started successfully",
                 inference_url=inference_service_url
@@ -57,9 +54,11 @@ def create_lifespan(
         yield
         
         logger.info("Shutting down API Gateway")
-        
-        # Cleanup resources if needed
-        # For example, close persistent HTTP clients
+
+        # close persistent HTTP client
+        if hasattr(app.state, "http_client"):
+            await app.state.http_client.aclose()
+            logger.info("HTTP client closed")
 
         logger.info("API Gateway shutdown complete")
     

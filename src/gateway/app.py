@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from gateway.api import exception_handlers, routes, lifespan as lifespan_module
 from gateway.auth.api_key_db import ApiKeyDB
 from gateway.auth.rate_limiter import SlidingWindowRateLimiter
+from gateway.auth.middleware import AuthMiddleware
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
@@ -70,9 +71,9 @@ def _initialize_dev_api_key(
     default_hour_limit: int
 ) -> None:
     """
-    Initialize the API key database with default dev key.
+    Initialize the API key database with default key.
 
-    In production, load this from environment variable or a secure vault.
+    In production, load it from environment variable or a secure vault.
     """
     dev_key = ApiKeyDB.generate_key(prefix="sk_dev")
     api_key_db.add_key(
@@ -99,18 +100,19 @@ def _create_app(
 ) -> FastAPI:
     """
     Create and configure the FastAPI application.
-
+    
     Args:
         inference_url: URL of the inference service
         rate_limit_minute: Default rate limit per minute
         rate_limit_hour: Default rate limit per hour
         cors_origins: CORS allowed origins
-
+        
     Returns:
         Configured FastAPI application
     """
     api_key_db = ApiKeyDB()
     rate_limiter = SlidingWindowRateLimiter()
+    auth_middleware = AuthMiddleware(api_key_db, rate_limiter)
 
     _initialize_dev_api_key(api_key_db, rate_limit_minute, rate_limit_hour)
 
@@ -139,16 +141,8 @@ def _create_app(
     )
 
     exception_handlers.register_exception_handlers(app)
-    
-    # Register routes with auth dependency
-    # We need to pass the verify_api_key dependency to routes
-    # This is a bit tricky since we need to access app.state.verify_api_key
-    # after the app is created. We'll use a wrapper.
-    def get_verify_api_key():
-        return app.state.verify_api_key
+    routes.register_routes(app, auth_middleware.verify_api_key)
 
-    routes.register_routes(app, get_verify_api_key())
-    
     logger.info(
         "FastAPI application created",
         inference_url=inference_url,
@@ -182,7 +176,7 @@ def main():
         port=args.port,
         log_level="info",
         access_log=True,
-        workers=1,  # TODO should we change this?
+        workers=1,  # TODO change this later
     )
 
 
