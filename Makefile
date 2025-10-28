@@ -23,8 +23,24 @@ start-gateway:
 		--rate-limit-minute 60 \
 		--rate-limit-hour 1000
 
-load-test:
-	@./scripts/load-test.sh -H localhost -P $(GATEWAY_PORT) -u 50 -r 10 -d "30s"
+load-test-inference:
+	@./scripts/load-test.sh \
+		-H localhost \
+		-P $(INFERENCE_PORT) \
+		-u 50 \
+		-r 10 \
+		-d "30s" \
+		-f src/benchmarks/locustfile_inference.py
+	@open reports/latest.html
+
+load-test-gateway:
+	@./scripts/load-test.sh \
+		-H localhost \
+		-P $(GATEWAY_PORT) \
+		-u 50 \
+		-r 10 \
+		-d "30s" \
+		-f src/benchmarks/locustfile_gateway.py
 	@open reports/latest.html
 
 docker-build:
