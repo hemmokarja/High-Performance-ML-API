@@ -66,10 +66,22 @@ def _initialize_dev_api_key(
 ) -> None:
     """
     Initialize the API key database with default key.
-
-    In production, load it from environment variable or a secure vault.
+    First checks for API_KEY in environment variables. If not found, generates a new
+    key and prints it.
     """
-    dev_key = ApiKeyDB.generate_key(prefix="sk_dev")
+    dev_key = os.environ.get("API_KEY")
+    if dev_key:
+        logger.info("Using API key from environment variable API_KEY")
+    else:
+        dev_key = ApiKeyDB.generate_key(prefix="sk_dev")
+        logger.warning(
+            "Generated development API key - store this securely!",
+            api_key=dev_key
+        )
+        print(f"\n{'='*60}")
+        print(f"Development API Key: {dev_key}")
+        print(f"{'='*60}\n")
+
     api_key_db.add_key(
         key=dev_key,
         user_id="dev_user",
@@ -77,13 +89,6 @@ def _initialize_dev_api_key(
         rate_limit_per_minute=default_minute_limit,
         rate_limit_per_hour=default_hour_limit,
     )
-    logger.warning(
-        "Generated development API key - store this securely!",
-        api_key=dev_key
-    )
-    print(f"\n{'='*60}")
-    print(f"Development API Key: {dev_key}")
-    print(f"{'='*60}\n")
 
 
 def _create_app(
