@@ -18,12 +18,12 @@ start-gateway:
 	@uv run python src/gateway/app.py \
 		--host 0.0.0.0 \
 		--port $(GATEWAY_PORT) \
-		--inference-url "https://localhost:$(INFERENCE_PORT)"
+		--inference-url "http://localhost:$(INFERENCE_PORT)"
 		--rate-limit-minute 60
 		--rate-limit-hour 1000
 
 load-test:
-	@./scripts/load-test.sh -H localhost -P $(INFERENCE_PORT) -u 50 -r 10 -d "30s"
+	@./scripts/load-test.sh -H localhost -P $(GATEWAY_PORT) -u 50 -r 10 -d "30s"
 	@open reports/latest.html
 
 docker-build:

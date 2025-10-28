@@ -2,11 +2,13 @@
 set -e
 
 HOST="localhost"
-PORT=8001
+PORT=8000  # gateway port
 REPORT_DIR="reports"
 USERS=50
 SPAWN_RATE=10
 DURATION="30s"
+MAX_HEALTH_RETRIES=20
+HEALTH_RETRY_DELAY=5
 
 usage() {
     echo "Usage: $0 [-H host] [-P port] [-u users] [-r spawn_rate] [-d duration]"
@@ -29,11 +31,26 @@ while getopts "H:P:u:r:d:" opt; do
     esac
 done
 
+FULL_HOST="http://$HOST:$PORT"
+HEALTH_URL="$FULL_HOST/health"
 REPORT_FILENAME="report-$(date +"%Y-%m-%d-%H-%M").html"
 
-mkdir -p "$REPORT_DIR"
+# Health check with retries
+echo "Checking health..."
+for i in $(seq 1 $MAX_HEALTH_RETRIES); do
+    if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+        echo "Service ready!"
+        break
+    else
+        if [ $i -eq $MAX_HEALTH_RETRIES ]; then
+            echo "Health check failed - is the service running?"
+            exit 1
+        fi
+        sleep $HEALTH_RETRY_DELAY
+    fi
+done
 
-FULL_HOST="http://$HOST:$PORT"
+mkdir -p "$REPORT_DIR"
 
 echo "Running load test for $DURATION with $USERS users at $SPAWN_RATE spawn rate against $FULL_HOST..."
 
