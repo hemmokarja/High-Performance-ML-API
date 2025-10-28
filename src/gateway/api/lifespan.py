@@ -23,7 +23,6 @@ def create_lifespan(
         api_key_db: API key database instance
         rate_limiter: Rate limiter instance
     """
-
     @asynccontextmanager
     async def _lifespan(app: FastAPI):
         """Manage application lifecycle - startup and shutdown"""
@@ -32,7 +31,7 @@ def create_lifespan(
             app.state.api_key_db = api_key_db
             app.state.rate_limiter = rate_limiter
 
-            limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
+            limits = httpx.Limits(max_keepalive_connections=100, max_connections=150)
             app.state.http_client = httpx.AsyncClient(timeout=30.0, limits=limits)
 
             logger.info(

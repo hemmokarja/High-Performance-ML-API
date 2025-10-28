@@ -1,8 +1,14 @@
-from locust import HttpUser, task, events, constant_throughput
+import os
 import random
-import structlog
 
+import structlog
+from dotenv import load_dotenv
+from locust import HttpUser, task, events, constant_throughput
+
+load_dotenv()
 logger = structlog.get_logger(__name__)
+
+API_KEY = os.getenv("API_KEY")
 
 
 class EmbedUser(HttpUser):
@@ -14,16 +20,26 @@ class EmbedUser(HttpUser):
     """
     wait_time = constant_throughput(100)
 
+    def on_start(self):
+        self.api_key = os.getenv("API_KEY")
+        if not self.api_key:
+            raise RuntimeError("API_KEY must be set as environment variable")
+
     @task
     def get_embedding(self):
         input_text = self._generate_input()
         payload = {"input_text": input_text}
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
 
         with self.client.post(
-            "/embed",
+            "/v1/embed",
             json=payload,
+            headers=headers,
             catch_response=True,
-            name="/embed"
+            name="/v1/embed"
         ) as response:
             try:
                 if response.status_code != 200:
