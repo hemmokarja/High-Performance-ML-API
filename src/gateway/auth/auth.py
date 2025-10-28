@@ -1,3 +1,5 @@
+import os
+
 import structlog
 from fastapi import Security, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -19,7 +21,12 @@ class AuthService:
     def __init__(self, api_key_db: ApiKeyDB, rate_limiter: SlidingWindowRateLimiter):
         self.api_key_db = api_key_db
         self.rate_limiter = rate_limiter
-        logger.info("AuthService initialized")
+        self.bypass_rate_limits = (
+            os.getenv("BYPASS_RATE_LIMITS", "false").lower() == "true"
+        )
+        logger.info(
+            "AuthService initialized", bypass_rate_limits=self.bypass_rate_limits
+        )
 
     async def verify_api_key(
         self, credentials: HTTPAuthorizationCredentials = Security(security)
@@ -57,6 +64,15 @@ class AuthService:
                 detail="Invalid API key",
                 headers={"WWW-Authenticate": "Bearer"}
             )
+
+        if self.bypass_rate_limits:
+            user_info["rate_limit_info"] = {
+                "requests_this_minute": 0,
+                "requests_this_hour": 0,
+                "minute_limit": float("inf"),
+                "hour_limit": float("inf")
+            }
+            return user_info
 
         try:
             rate_limit_info = self.rate_limiter.check_rate_limit(

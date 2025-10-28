@@ -5,6 +5,7 @@ GATEWAY_PORT?=8000
 MAX_BATCH_SIZE?=32
 BATCH_TIMEOUT?=0.01
 NUM_BATCHING_WORKERS?=2
+BYPASS_RATE_LIMITS?=false
 
 start-inference:
 	@uv run python src/inference/app.py \
@@ -15,11 +16,11 @@ start-inference:
 		--num-batching-workers $(NUM_BATCHING_WORKERS)
 
 start-gateway:
-	@uv run python src/gateway/app.py \
+	@BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) uv run python src/gateway/app.py \
 		--host 0.0.0.0 \
 		--port $(GATEWAY_PORT) \
-		--inference-url "http://localhost:$(INFERENCE_PORT)"
-		--rate-limit-minute 60
+		--inference-url "http://localhost:$(INFERENCE_PORT)" \
+		--rate-limit-minute 60 \
 		--rate-limit-hour 1000
 
 load-test:
@@ -31,10 +32,10 @@ docker-build:
 
 docker-up:
 	@INFERENCE_PORT=$(INFERENCE_PORT) \
-	MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
-	BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
-	NUM_BATCHING_WORKERS=$(NUM_BATCHING_WORKERS) \
-	docker-compose up -d
+		MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
+		BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
+		NUM_BATCHING_WORKERS=$(NUM_BATCHING_WORKERS) \
+		docker-compose up -d
 
 docker-down:
 	@docker-compose down
