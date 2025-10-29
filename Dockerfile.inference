@@ -1,0 +1,8 @@
+FROM api-base:latest
+
+CMD uv run python -m src.inference.app \
+    --host 0.0.0.0 \
+    --port ${PORT:-8001} \
+    --max-batch-size ${MAX_BATCH_SIZE:-32} \
+    --batch-timeout ${BATCH_TIMEOUT:-0.01} \
+    --num-batching-workers ${NUM_BATCHING_WORKERS:-2}

@@ -1,0 +1,9 @@
+FROM api-base:latest
+
+CMD uv run python -m src.gateway.app \
+    --host 0.0.0.0 \
+    --port ${PORT:-8000} \
+    --inference-url ${INFERENCE_URL:-"http://inference-api:8001"} \
+    --rate-limit-minute 60 \
+    --rate-limit-hour 1000 \
+    --workers ${NUM_UVICORN_WORKERS:-1}

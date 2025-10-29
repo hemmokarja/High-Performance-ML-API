@@ -45,7 +45,10 @@ load-test-gateway:
 		-f src/benchmarks/locustfile_gateway.py
 	@open reports/latest.html
 
-docker-build:
+docker-build-base:
+	@docker build -f Dockerfile.base -t api-base:latest .
+
+docker-build: docker-build-base
 	@docker-compose build
 
 docker-up:
@@ -53,6 +56,10 @@ docker-up:
 		MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
 		BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
 		NUM_BATCHING_WORKERS=$(NUM_BATCHING_WORKERS) \
+		GATEWAY_PORT=$(GATEWAY_PORT)
+		INFERENCE_URL=http://inference-api:$(INFERENCE_PORT)
+		NUM_UVICORN_WORKERS=$(NUM_UVICORN_WORKERS)
+		BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS)
 		docker-compose up -d
 
 docker-down:

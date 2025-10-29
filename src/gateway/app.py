@@ -148,8 +148,9 @@ def _create_app(
     return app
 
 
+# need to init app globally to allow multiple workers, which requires passing app path 
+# string to uvicorn.run()
 args = parse_args()
-
 app = _create_app(
     inference_url=args.inference_url,
     rate_limit_minute=args.rate_limit_minute,
