@@ -1,4 +1,4 @@
-.PHONY: start-inference start-gateway load-test docker-build docker-up docker-down
+.PHONY: start-inference start-gateway load-test build up down
 
 INFERENCE_PORT?=8001
 GATEWAY_PORT?=8000
@@ -45,13 +45,13 @@ load-test-gateway:
 		-f src/benchmarks/locustfile_gateway.py
 	@open reports/latest.html
 
-docker-build-base:
+build-base:
 	@docker build -f Dockerfile.base -t api-base:latest .
 
-docker-build: docker-build-base
+build: build-base
 	@docker-compose build
 
-docker-up:
+up:
 	@INFERENCE_PORT=$(INFERENCE_PORT) \
 		MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
 		BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
@@ -62,5 +62,5 @@ docker-up:
 		BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS)
 		docker-compose up -d
 
-docker-down:
+down:
 	@docker-compose down
