@@ -4,11 +4,11 @@ Professional API Gateway with authentication and rate limiting for the ML infere
 
 ## Features
 
-- ✅ **API Key Authentication**: Secure bearer token authentication with SHA-256 hashed keys
-- ✅ **Rate Limiting**: Sliding window rate limiter with per-minute and per-hour limits
-- ✅ **Professional Error Handling**: Comprehensive error responses with proper HTTP status codes
-- ✅ **Usage Tracking**: Monitor your API usage in real-time
-- ✅ **Health Checks**: Kubernetes-ready health and readiness endpoints
+- **API Key Authentication**: Secure bearer token authentication with SHA-256 hashed keys
+- **Rate Limiting**: Sliding window rate limiter with per-minute and per-hour limits
+- **Professional Error Handling**: Comprehensive error responses with proper HTTP status codes
+- **Usage Tracking**: Monitor your API usage in real-time
+- **Health Checks**: Kubernetes-ready health and readiness endpoints
 
 ## Architecture
 
@@ -20,44 +20,38 @@ Client → API Gateway (port 8000) → Inference Service (port 8001)
 
 ## Quick Start
 
-### 1. Start the Inference Service
+### Start the Inference Service
+
+In terminal
 
 ```bash
-python -m inference.app --port 8001
+make start-inference
+make start-gateway
 ```
 
-### 2. Start the Gateway
+or with `docker-compose`
 
 ```bash
-# Basic start (generates a dev API key)
-python -m gateway.app
-
-# With custom configuration
-python -m gateway.app \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --inference-url http://localhost:8001 \
-  --rate-limit-minute 60 \
-  --rate-limit-hour 1000
+make up
 ```
 
-### 3. Use the API
+### Use the API
 
 ```bash
 # The gateway will print your API key on startup
 export API_KEY="sk_dev_XXXXXXXXX"
 
-# Generate embeddings
+# generate embeddings
 curl -X POST http://localhost:8000/v1/embed \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"input_text": "Hello, world!"}'
 
-# Check usage
+# check usage
 curl http://localhost:8000/v1/usage \
   -H "Authorization: Bearer $API_KEY"
 
-# Health check
+# health check
 curl http://localhost:8000/health
 ```
 
@@ -89,10 +83,6 @@ Generate embeddings for input text.
 {
   "embedding": [0.123, -0.456, ...],
   "model": "sentence-transformers/all-mpnet-base-v2",
-  "usage": {
-    "prompt_tokens": 4,
-    "total_tokens": 4
-  }
 }
 ```
 
@@ -145,7 +135,7 @@ Readiness check for Kubernetes (no auth required).
 
 ## Configuration
 
-### Command Line Arguments
+Command Line Arguments:
 
 ```
 --host                  Host to bind to (default: 0.0.0.0)
@@ -154,16 +144,6 @@ Readiness check for Kubernetes (no auth required).
 --rate-limit-minute     Requests per minute limit (default: 60)
 --rate-limit-hour       Requests per hour limit (default: 1000)
 ```
-
-## Key Management
-
-### Key Format
-
-- Production keys: `sk_live_XXXXXXXXX`
-- Test keys: `sk_test_XXXXXXXXX`
-- Development keys: `sk_dev_XXXXXXXXX`
-
-Keys are stored as SHA-256 hashes for security.
 
 ## Rate Limiting
 
