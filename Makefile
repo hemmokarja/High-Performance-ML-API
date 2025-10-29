@@ -5,6 +5,7 @@ GATEWAY_PORT?=8000
 MAX_BATCH_SIZE?=32
 BATCH_TIMEOUT?=0.01
 NUM_BATCHING_WORKERS?=2
+NUM_UVICORN_WORKERS?=4
 BYPASS_RATE_LIMITS?=false
 
 start-inference:
@@ -22,7 +23,7 @@ start-gateway:
 		--inference-url "http://localhost:$(INFERENCE_PORT)" \
 		--rate-limit-minute 60 \
 		--rate-limit-hour 1000 \
-		--workers 4
+		--workers $(NUM_UVICORN_WORKERS)
 
 load-test-inference:
 	@./scripts/load-test.sh \
