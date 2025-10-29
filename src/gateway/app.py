@@ -56,6 +56,12 @@ def parse_args():
         default=DEFAULT_RATE_LIMIT_HOUR,
         help="Default requests per hour rate limit",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of Uvicorn workers to use",
+    )
     return parser.parse_args()
 
 
@@ -142,30 +148,27 @@ def _create_app(
     return app
 
 
-def main():
-    args = parse_args()
+args = parse_args()
 
-    app = _create_app(
-        inference_url=args.inference_url,
-        rate_limit_minute=args.rate_limit_minute,
-        rate_limit_hour=args.rate_limit_hour,
-    )
+app = _create_app(
+    inference_url=args.inference_url,
+    rate_limit_minute=args.rate_limit_minute,
+    rate_limit_hour=args.rate_limit_hour,
+)
 
+if __name__ == "__main__":
     logger.info(
         "Starting API Gateway",
         host=args.host,
-        port=args.port
+        port=args.port,
+        workers=args.workers,
     )
-    
+
     uvicorn.run(
-        app,
+        "gateway.app:app",
         host=args.host,
         port=args.port,
         log_level="info",
         access_log=True,
-        workers=1,  # TODO change this later
+        workers=args.workers,
     )
-
-
-if __name__ == "__main__":
-    main()

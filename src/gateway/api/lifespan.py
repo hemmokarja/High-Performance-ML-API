@@ -31,7 +31,7 @@ def create_lifespan(
             app.state.api_key_db = api_key_db
             app.state.rate_limiter = rate_limiter
 
-            limits = httpx.Limits(max_keepalive_connections=100, max_connections=150)
+            limits = httpx.Limits(max_keepalive_connections=200, max_connections=200)
             app.state.http_client = httpx.AsyncClient(timeout=30.0, limits=limits)
 
             logger.info(

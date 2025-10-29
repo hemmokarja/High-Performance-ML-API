@@ -21,7 +21,8 @@ start-gateway:
 		--port $(GATEWAY_PORT) \
 		--inference-url "http://localhost:$(INFERENCE_PORT)" \
 		--rate-limit-minute 60 \
-		--rate-limit-hour 1000
+		--rate-limit-hour 1000 \
+		--workers 4
 
 load-test-inference:
 	@./scripts/load-test.sh \
