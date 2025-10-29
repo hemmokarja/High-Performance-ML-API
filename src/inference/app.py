@@ -5,6 +5,7 @@ import structlog
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from inference.api import exception_handlers, routes, lifespan as lifespan_module
 from inference.models.hugginface import HugginFaceEmbeddingModel
@@ -95,6 +96,9 @@ def main():
         batch_timeout=args.batch_timeout,
         num_workers=args.num_batching_workers,
     )
+
+    Instrumentator().instrument(app).expose(app)
+
     logger.info("Starting server", host=args.host, port=args.port)
     uvicorn.run(
         app,  # recommended to pass as string in prod

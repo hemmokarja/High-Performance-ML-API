@@ -2,6 +2,8 @@ import asyncio
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request, status
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from starlette.responses import Response
 
 from inference.api.schemas import EmbedResponse, EmbedRequest, HealthResponse
 
@@ -79,7 +81,7 @@ async def _embed_text(embed_request: EmbedRequest, request: Request):
         )
 
 
-async def _metrics(request: Request):
+async def _metrics_old(request: Request):
     """
     Expose metrics for monitoring (Prometheus format).
 
@@ -92,6 +94,15 @@ async def _metrics(request: Request):
         "num_workers": batcher.num_workers,
         "max_batch_size": batcher.max_batch_size,
     }
+
+
+async def _metrics(request: Request):
+    """Expose metrics for monitoring (Prometheus format)"""
+    _ensure_service_ready(request)
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 
 def register_routes(app: FastAPI):

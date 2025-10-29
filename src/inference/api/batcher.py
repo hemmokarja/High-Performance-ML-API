@@ -4,6 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import List, Any
 
+from inference.api import metrics
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -14,6 +16,7 @@ class Request:
     id: int
     data: Any
     future: asyncio.Future
+    timestamp: float  # for latency tracking
 
 
 class DynamicBatcher:
@@ -58,6 +61,9 @@ class DynamicBatcher:
         self.inflight_batches = 0
         self._started = False
 
+        # start background task to update gauge metrics
+        self._metrics_task = None
+
     def is_started(self):
         return self._started
 
@@ -76,10 +82,21 @@ class DynamicBatcher:
             )
             self.worker_tasks.append(task)
 
+        # start metrics updater
+        self._metrics_task = asyncio.create_task(self._update_gauges())
+
     async def shutdown(self):
         """Graceful shutdown - call during app teardown"""
         if not self._started:
             return
+
+        # cancel metrics task
+        if self._metrics_task:
+            self._metrics_task.cancel()
+            try:
+                await self._metrics_task
+            except asyncio.CancelledError:
+                pass
 
         # send sentinel values to signal workers to stop
         for _ in range(self.num_workers):
@@ -92,15 +109,37 @@ class DynamicBatcher:
         # shutdown thread pool
         self.executor.shutdown(wait=True)
 
+    async def _update_gauges(self):
+        """Background task to periodically update gauge metrics"""
+        while True:
+            try:
+                metrics.QUEUE_SIZE.set(self.request_queue.qsize())
+                metrics.INFLIGHT_BATCHES.set(self.inflight_batches)
+                await asyncio.sleep(1)  # update every second
+            except asyncio.CancelledError:
+                break
+
     async def predict(self, data: Any) -> Any:
         if not self._started:
             raise RuntimeError("Batcher not started. Call start() first.")
 
+        request_start = time.time()
         future = asyncio.Future()
-        request = Request(id=id(data), data=data, future=future)
+        request = Request(
+            id=id(data), data=data, future=future, timestamp=request_start
+        )
 
         await self.request_queue.put(request)
-        return await future
+
+        try:
+            result = await future
+            metrics.REQUESTS_TOTAL.labels(status="success").inc()
+            metrics.REQUEST_LATENCY.observe(time.time() - request_start)
+            return result
+        except Exception as e:
+            metrics.REQUESTS_TOTAL.labels(status="error").inc()
+            metrics.REQUEST_LATENCY.observe(time.time() - request_start)
+            raise
 
     async def _batch_collector(self, loop, worker_id: int):
         """Long-lived worker that processes batches"""
@@ -146,14 +185,17 @@ class DynamicBatcher:
                     break
 
             # process the batch
-            wait_time_ms = (time.time() - batch_start) * 1000
-            await self._process_batch(loop, batch, worker_id, wait_time_ms)
+            wait_time = time.time() - batch_start
+            await self._process_batch(loop, batch, worker_id, wait_time)
 
     async def _process_batch(
-        self, loop, batch: List[Request], worker_id: int, wait_time_ms: float = 0
+        self, loop, batch: List[Request], worker_id: int, wait_time: float = 0
     ):
         start_time = time.time()
         batch_data = [req.data for req in batch]
+
+        metrics.BATCH_SIZE.observe(len(batch))
+        metrics.BATCH_WAIT_TIME.observe(wait_time)
 
         self.inflight_batches += 1
         try:
@@ -174,14 +216,17 @@ class DynamicBatcher:
             self.inflight_batches -= 1
 
         end_time = time.time()
-        inference_time_ms = (end_time - start_time) * 1000
+        inference_time = end_time - start_time
+
+        # record inference time
+        metrics.INFERENCE_TIME.observe(inference_time)
 
         logger.info(
             "Batch processed",
             worker_id=worker_id,
             batch_size=len(batch),
-            wait_ms=round(wait_time_ms, 1),
-            inference_ms=round(inference_time_ms, 1),
+            wait_ms=round(wait_time * 1000, 1),
+            inference_ms=round(inference_time * 1000, 1),
         )
 
         # return results to waiting futures
@@ -208,10 +253,19 @@ class NoBatchingWrapper:
 
     async def predict(self, data: Any) -> Any:
         """Process single request in thread pool"""
+        request_start = time.time()
         loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(
-            self.executor,
-            self.model.predict,
-            [data]
-        )
-        return results[0]
+
+        try:
+            results = await loop.run_in_executor(
+                self.executor,
+                self.model.predict,
+                [data]
+            )
+            metrics.REQUESTS_TOTAL.labels(status="success").inc()
+            metrics.REQUEST_LATENCY.observe(time.time() - request_start)
+            return results[0]
+        except Exception as e:
+            metrics.REQUESTS_TOTAL.labels(status="error").inc()
+            metrics.REQUEST_LATENCY.observe(time.time() - request_start)
+            raise
