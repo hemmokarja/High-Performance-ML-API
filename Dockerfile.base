@@ -20,23 +20,13 @@ RUN python -m pip install --user pipx && \
 # add pipx binaries to PATH
 ENV PATH="/home/apiuser/.local/bin:$PATH"
 
-# Stage 1: Install dependencies only (no project)
+# stage 1: install dependencies only (no project)
 COPY --chown=apiuser:apiuser pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
-# Stage 2: Copy source code and install project
+# stage 2: copy source code and install project
 COPY --chown=apiuser:apiuser src ./src
 COPY --chown=apiuser:apiuser .env .env
 RUN uv sync --frozen
 
 EXPOSE ${PORT:-8001}
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD uv run python -c "import os, requests; port=os.getenv('PORT', '8001'); requests.get(f'http://localhost:{port}/health')" || exit 1
-
-CMD uv run python -m src.inference.app \
-    --host 0.0.0.0 \
-    --port ${PORT:-8001} \
-    --max-batch-size ${MAX_BATCH_SIZE:-32} \
-    --batch-timeout ${BATCH_TIMEOUT:-0.01} \
-    --num-batching-workers ${NUM_BATCHING_WORKERS:-2}

@@ -1,14 +1,14 @@
 services:
-  model-api:
+  inference-api:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: model-api
+      dockerfile: Dockerfile.inference
+    container_name: inference-api
     ports:
-      - "${PORT:-8001}:${PORT:-8001}"
+      - "${INFERENCE_PORT:-8001}:${INFERENCE_PORT:-8001}"
     environment:
       - HF_TOKEN=${HF_TOKEN}
-      - PORT=${PORT:-8001}
+      - PORT=${INFERENCE_PORT:-8001}
       - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-32}
       - BATCH_TIMEOUT=${BATCH_TIMEOUT:-0.01}
       - NUM_BATCHING_WORKERS=${NUM_BATCHING_WORKERS:-2}
@@ -24,6 +24,43 @@ services:
         reservations:
           cpus: "2"
           memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${INFERENCE_PORT:-8001}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  gateway-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: gateway-api
+    ports:
+      - "${GATEWAY_PORT:-8000}:${GATEWAY_PORT:-8000}"
+    environment:
+      - PORT=${GATEWAY_PORT:-8000}
+      - INFERENCE_URL=http://inference-api:${INFERENCE_PORT:-8001}
+      - NUM_UVICORN_WORKERS=${NUM_UVICORN_WORKERS:-1}
+      - BYPASS_RATE_LIMITS=${BYPASS_RATE_LIMITS:-false}
+    depends_on:
+      inference-api:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "1"
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${GATEWAY_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
 volumes:
   huggingface-cache:

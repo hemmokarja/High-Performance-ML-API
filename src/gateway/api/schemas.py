@@ -1,7 +1,8 @@
 from typing import List, Optional
 
-import structlog
 from pydantic import BaseModel, Field, field_validator
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -32,13 +33,37 @@ class EmbedResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Health check response"""
     status: str
-    model: str
-    device: str
-    queue_size: int
-    inflight_batches: int
+    gateway_version: str
+    inference_service: dict
 
 
 class ErrorResponse(BaseModel):
     """Error response schema"""
-    error: str
-    detail: Optional[str] = None
+    error: str = Field(
+        ...,
+        description="Error type or message"
+    )
+    detail: Optional[str] = Field(
+        None,
+        description="Detailed error message"
+    )
+    code: Optional[str] = Field(
+        None,
+        description="Error code for programmatic handling"
+    )
+
+
+class RateLimitError(ErrorResponse):
+    """Rate limit error with retry information"""
+    retry_after: int = Field(
+        ...,
+        description="Seconds until rate limit resets"
+    )
+    limit: int = Field(
+        ...,
+        description="Rate limit threshold"
+    )
+    limit_type: str = Field(
+        ...,
+        description="Type of rate limit (minute/hour)"
+    )
