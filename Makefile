@@ -49,7 +49,7 @@ build-base:
 	@docker build -f Dockerfile.base -t api-base:latest .
 
 build: build-base
-	@docker-compose build
+	@docker compose build
 
 up:
 	@INFERENCE_PORT=$(INFERENCE_PORT) \
@@ -60,7 +60,7 @@ up:
 		INFERENCE_URL=http://inference-api:$(INFERENCE_PORT) \
 		NUM_UVICORN_WORKERS=$(NUM_UVICORN_WORKERS) \
 		BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) \
-		docker-compose up -d
+		docker compose up -d
 
 down:
-	@docker-compose down
+	@docker compose down
