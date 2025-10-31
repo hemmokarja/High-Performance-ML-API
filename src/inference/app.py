@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import torch
 import structlog
 import uvicorn
 from dotenv import load_dotenv
@@ -65,8 +66,9 @@ def parse_args():
 
 
 def _create_app(max_batch_size: int, batch_timeout: float, num_workers: int) -> FastAPI:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     lifespan = lifespan_module.create_lifespan(
-        model_factory=lambda: HugginFaceEmbeddingModel(MODEL_NAME, HF_TOKEN),
+        model_factory=lambda: HugginFaceEmbeddingModel(MODEL_NAME, HF_TOKEN, device),
         max_batch_size=max_batch_size,
         batch_timeout=batch_timeout,
         num_workers=num_workers,

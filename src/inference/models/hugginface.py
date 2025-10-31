@@ -3,7 +3,10 @@ from typing import Optional, List
 import numpy as np
 import torch
 import torch.nn.functional as F
+import structlog
 from transformers import AutoTokenizer, AutoModel
+
+logger = structlog.get_logger(__name__)
 
 
 class HugginFaceEmbeddingModel:
@@ -19,7 +22,13 @@ class HugginFaceEmbeddingModel:
         self.device = device or torch.device("cpu")
         self.device_str = str(self.device)
 
+        self.model.to(self.device)
         self.model.eval()
+
+        logger.info(
+            f"Initialized HugginFaceEmbeddingModel({model_name}) "
+            f"on device {self.device}"
+        )
 
     def predict(self, batch: List[str]) -> List[np.ndarray]:
         encoded_input = self.tokenizer(
@@ -53,3 +62,17 @@ class HugginFaceEmbeddingModel:
             torch.sum(latent_emb * expanded_mask, 1)  # [B, C]
             / torch.clamp(expanded_mask.sum(1), min=1e-9)  # [B, C]
         )  # [B, C]
+
+    def to(self, device: torch.device | str):
+        self.device = torch.device(device)
+        self.device_str = str(self.device)
+        self.model.to(self.device)
+        return self
+
+    def eval(self):
+        self.model.eval()
+        return self
+
+    def train(self, mode: bool = True):
+        self.model.train(mode)
+        return self
