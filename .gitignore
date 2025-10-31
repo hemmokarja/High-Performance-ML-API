@@ -13,3 +13,4 @@ wheels/
 _*.ipynb
 .env
 reports
+tmp.txt

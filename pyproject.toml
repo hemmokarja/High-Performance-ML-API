@@ -14,10 +14,34 @@ dependencies = [
     "prometheus-fastapi-instrumentator>=7.1.0",
     "python-dotenv>=1.1.1",
     "structlog>=25.4.0",
-    "torch>=2.9.0",
     "transformers>=4.57.1",
     "uvicorn>=0.38.0",
 ]
+
+[project.optional-dependencies]
+cpu = ["torch==2.8"]
+cu128 = ["torch==2.8"]
+
+[tool.uv]
+conflicts = [
+  [{ extra = "cpu" }, { extra = "cu128" }]
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu128", extra = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [tool.setuptools]
 package-dir = {"" = "src"}
