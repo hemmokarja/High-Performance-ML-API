@@ -98,22 +98,8 @@ def _initialize_dev_api_key(
 
 
 def _create_app(
-    inference_url: str,
-    rate_limit_minute: int,
-    rate_limit_hour: int,
+    inference_url: str, rate_limit_minute: int, rate_limit_hour: int
 ) -> FastAPI:
-    """
-    Create and configure the FastAPI application.
-    
-    Args:
-        inference_url: URL of the inference service
-        rate_limit_minute: Default rate limit per minute
-        rate_limit_hour: Default rate limit per hour
-        cors_origins: CORS allowed origins
-        
-    Returns:
-        Configured FastAPI application
-    """
     api_key_db = ApiKeyDB()
     rate_limiter = SlidingWindowRateLimiter()
     auth_service = AuthService(api_key_db, rate_limiter)
