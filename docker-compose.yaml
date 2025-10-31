@@ -12,6 +12,8 @@ services:
       - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-32}
       - BATCH_TIMEOUT=${BATCH_TIMEOUT:-0.01}
       - NUM_BATCHING_WORKERS=${NUM_BATCHING_WORKERS:-2}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       # mount cache directory for HuggingFace models to avoid re-downloading
       - huggingface-cache:/home/apiuser/.cache/huggingface
@@ -24,6 +26,10 @@ services:
         reservations:
           cpus: "2"
           memory: 2G
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${INFERENCE_PORT:-8001}/health"]
       interval: 30s

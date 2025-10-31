@@ -1,4 +1,37 @@
-FROM api-base:latest
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 apiuser && \
+    chown -R apiuser:apiuser /app
+
+USER apiuser
+
+RUN mkdir -p /home/apiuser/.cache/huggingface && \
+    chown -R apiuser:apiuser /home/apiuser/.cache/huggingface
+
+RUN python -m pip install --user pipx && \
+    python -m pipx ensurepath && \
+    /home/apiuser/.local/bin/pipx install uv
+
+# add pipx binaries to PATH
+ENV PATH="/home/apiuser/.local/bin:$PATH"
+
+# stage 1: install dependencies only (no project)
+COPY --chown=apiuser:apiuser pyproject.toml ./
+RUN uv sync --no-cache --no-install-project --extra cpu
+
+# stage 2: copy source code and install project
+COPY --chown=apiuser:apiuser src ./src
+COPY --chown=apiuser:apiuser .env .env
+RUN uv sync --no-cache --extra cpu
+
+EXPOSE ${PORT:-8001}
 
 CMD uv run python -m src.gateway.app \
     --host 0.0.0.0 \

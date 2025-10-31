@@ -33,7 +33,6 @@ load-test-inference:
 		-r 10 \
 		-d "30s" \
 		-f src/benchmarks/locustfile_inference.py
-	@open reports/latest.html
 
 load-test-gateway:
 	@./scripts/load-test.sh \
@@ -43,12 +42,8 @@ load-test-gateway:
 		-r 10 \
 		-d "30s" \
 		-f src/benchmarks/locustfile_gateway.py
-	@open reports/latest.html
 
-build-base:
-	@docker build -f Dockerfile.base -t api-base:latest .
-
-build: build-base
+build:
 	@docker compose build
 
 up:
@@ -64,3 +59,7 @@ up:
 
 down:
 	@docker compose down
+
+# get ip for port-forwarding
+get-ip:
+	@echo "$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)"

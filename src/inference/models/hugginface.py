@@ -41,7 +41,7 @@ class HugginFaceEmbeddingModel:
         latent_emb = model_out[0]  # first element contains token embeddings
         emb = self._mean_pool(latent_emb, encoded_input["attention_mask"])  # [B, T]
         emb = F.normalize(emb, p=2, dim=1)  # [B, T]
-        emb = emb.numpy()
+        emb = emb.cpu().numpy()
         return [emb[i] for i in range(emb.shape[0])]
 
     @staticmethod

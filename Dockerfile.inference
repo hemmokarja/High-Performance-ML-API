@@ -1,4 +1,38 @@
-FROM api-base:latest
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+WORKDIR /app
+
+# install curl for healthchecks
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# create non-root user
+RUN useradd -m -u 1000 apiuser && \
+    chown -R apiuser:apiuser /app
+
+USER apiuser
+
+RUN mkdir -p /home/apiuser/.cache/huggingface && \
+    chown -R apiuser:apiuser /home/apiuser/.cache/huggingface
+
+# install uv
+RUN pip install --user uv
+ENV PATH="/home/apiuser/.local/bin:$PATH"
+
+# install dependencies with CUDA support
+COPY --chown=apiuser:apiuser pyproject.toml ./
+RUN uv sync --no-cache --no-install-project --extra cu128
+
+# copy source and install project
+COPY --chown=apiuser:apiuser src ./src
+COPY --chown=apiuser:apiuser .env .env
+RUN uv sync --no-cache --extra cu128
+
+EXPOSE ${PORT:-8001}
 
 CMD uv run python -m src.inference.app \
     --host 0.0.0.0 \
