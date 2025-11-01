@@ -59,37 +59,16 @@ make up
 
 The service will start on `http://localhost:8001` by default.
 
-### Generate Embeddings
+### Use the API
 
 ```bash
+# generate embeddings
 curl -X POST http://localhost:8001/embed \
   -H "Content-Type: application/json" \
   -d '{"input_text": "Hello, world!"}'
-```
 
-**Response:**
-```json
-{
-  "embedding": [0.123, -0.456, ...],
-  "model": "sentence-transformers/all-mpnet-base-v2"
-}
-```
-
-### Check Service Health
-
-```bash
-curl http://localhost:8001/health
-```
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "model": "sentence-transformers/all-mpnet-base-v2",
-  "device": "cuda:0",
-  "queue_size": 0,
-  "inflight_batches": 0
-}
+# health check
+curl http://localhost:8000/health
 ```
 
 ## API Reference
@@ -170,6 +149,16 @@ Prometheus metrics endpoint for monitoring.
 
 ## Configuration
 
+### Environment Variables
+
+```env
+# Hugging Face authentication (if using private models)
+HF_TOKEN=your_hugging_face_token_here
+
+# Model configuration (supports HF sentence transformers)
+MODEL_NAME=sentence-transformers/all-mpnet-base-v2
+```
+
 ### Command Line Arguments
 
 ```bash
@@ -180,33 +169,6 @@ python -m inference.app \
   --batch-timeout 0.01 \
   --num-batching-workers 2
 ```
-
-### Environment Variables
-
-```env
-# Hugging Face authentication (if using private models)
-HF_TOKEN=your_hugging_face_token_here
-
-# Model configuration
-MODEL_NAME=sentence-transformers/all-mpnet-base-v2
-```
-
-### Tuning Batch Parameters
-
-**`max_batch_size`**: Higher values improve GPU utilization but increase latency
-- **Small models/fast inference**: 8-16
-- **Medium models**: 32-64
-- **Large models**: 128+
-
-**`batch_timeout`**: Balance between throughput and latency
-- **Low latency priority**: 5-10ms
-- **Balanced**: 10-50ms
-- **High throughput priority**: 50-100ms
-
-**`num_batching_workers`**: Number of concurrent batch collectors
-- **Single GPU**: 1-2 workers
-- **Multiple GPUs**: Scale workers with GPU count
-- More workers allow batches to form while previous batches are processing
 
 ## Error Handling
 

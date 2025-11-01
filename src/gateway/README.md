@@ -36,6 +36,8 @@ make build
 make up
 ```
 
+The service will start on `http://localhost:8000` by default.
+
 ### Use the API
 
 ```bash
