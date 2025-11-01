@@ -207,7 +207,6 @@ All errors return structured JSON responses:
 ## Production Considerations
 
 ### Authentication & Secrets
-### Authentication & Secrets
 
 - Store API keys in environment variables or secret management systems (AWS Secrets Manager, HashiCorp Vault)
 - Use HTTPS in production
