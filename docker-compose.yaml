@@ -50,10 +50,10 @@ services:
         reservations:
           cpus: "2"
           memory: 2G
-        devices:
-          - driver: nvidia
-            count: all
-            capabilities: [gpu]
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${INFERENCE_PORT:-8001}/health"]
       interval: 30s

@@ -5,15 +5,13 @@ import structlog
 from fastapi import FastAPI
 
 from gateway.auth.api_key_db import ApiKeyDB
-from gateway.auth.rate_limiter import SlidingWindowRateLimiter
+from gateway.auth.rate_limiter import RateLimiter
 
 logger = structlog.get_logger(__name__)
 
 
 def create_lifespan(
-    inference_service_url: str,
-    api_key_db: ApiKeyDB,
-    rate_limiter: SlidingWindowRateLimiter
+    inference_service_url: str, api_key_db: ApiKeyDB, rate_limiter: RateLimiter
 ):
     """
     Create a lifespan context manager for the gateway app.

@@ -5,7 +5,7 @@ from fastapi import Security, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from gateway.auth.api_key_db import ApiKeyDB
-from gateway.auth.rate_limiter import SlidingWindowRateLimiter, RateLimitExceeded
+from gateway.auth.rate_limiter import RateLimiter, RateLimitExceeded
 
 logger = structlog.get_logger(__name__)
 
@@ -18,7 +18,7 @@ class AuthService:
 
     Validates API keys and enforces rate limits on a per-user basis.
     """
-    def __init__(self, api_key_db: ApiKeyDB, rate_limiter: SlidingWindowRateLimiter):
+    def __init__(self, api_key_db: ApiKeyDB, rate_limiter: RateLimiter):
         self.api_key_db = api_key_db
         self.rate_limiter = rate_limiter
         self.bypass_rate_limits = (

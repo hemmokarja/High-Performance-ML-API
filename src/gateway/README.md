@@ -5,7 +5,7 @@ Professional API Gateway with authentication and rate limiting for the ML infere
 ## Features
 
 - **API Key Authentication**: Secure bearer token authentication with SHA-256 hashed keys
-- **Rate Limiting**: Sliding window rate limiter with per-minute and per-hour limits
+- **Distributed Rate Limiting**: Redis-based sliding window rate limiter with automatic fallback
 - **Professional Error Handling**: Comprehensive error responses with proper HTTP status codes
 - **Usage Tracking**: Monitor your API usage in real-time
 - **Health Checks**: Kubernetes-ready health and readiness endpoints
@@ -15,7 +15,7 @@ Professional API Gateway with authentication and rate limiting for the ML infere
 ```
 Client → API Gateway (port 8000) → Inference Service (port 8001)
          ↓
-    Auth + Rate Limiting
+    Auth + Rate Limiting (Redis)
 ```
 
 ## Quick Start
@@ -29,7 +29,7 @@ make start-inference
 make start-gateway
 ```
 
-or with `docker-compose`
+or with `docker-compose` (includes Redis)
 
 ```bash
 make up
@@ -101,7 +101,8 @@ Get current rate limit usage.
   "usage": {
     "requests_last_minute": 5,
     "requests_last_hour": 42,
-    "timestamp": "2025-01-27T10:30:00Z"
+    "timestamp": "2025-01-27T10:30:00Z",
+    "backend": "redis"
   },
   "limits": {
     "per_minute": 60,
@@ -135,27 +136,57 @@ Readiness check for Kubernetes (no auth required).
 
 ## Configuration
 
-Command Line Arguments:
+### Environment Variables
 
+```env
+# Gateway
+GATEWAY_PORT=8000
+REDIS_URL=redis://localhost:6379/0
+BYPASS_RATE_LIMITS=false  # Set to 'true' to disable rate limiting
+
+# Rate Limits
+RATE_LIMIT_MINUTE=60
+RATE_LIMIT_HOUR=1000
+
+# API Key (optional - auto-generated if not set)
+API_KEY=sk_dev_your_key_here
 ```
---host                  Host to bind to (default: 0.0.0.0)
---port                  Port to bind to (default: 8000)
---inference-url         Inference service URL (default: http://localhost:8001)
---rate-limit-minute     Requests per minute limit (default: 60)
---rate-limit-hour       Requests per hour limit (default: 1000)
+
+### Command Line Arguments
+
+```bash
+python -m gateway.app \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --inference-url http://localhost:8001 \
+  --redis-url redis://localhost:6379/0 \
+  --rate-limit-minute 60 \
+  --rate-limit-hour 1000 \
+  --bypass-rate-limits  # Optional: disable rate limiting
 ```
 
 ## Rate Limiting
 
-The gateway uses a **sliding window** rate limiter with two independent limits:
+The gateway uses a **Redis-based distributed sliding window** rate limiter with two independent limits:
 
-- **Per-minute limit**: Short-term burst protection
-- **Per-hour limit**: Long-term usage control
+- **Per-minute and per-hour limit**: Short- and long-term protection
+- **Distributed**: Shared across multiple gateway instances via Redis
+- **Automatic fallback**: Disables rate limiting if Redis is unavailable
 
 When a limit is exceeded:
 - Returns `429 Too Many Requests`
 - Includes `Retry-After` header with seconds until reset
 - Provides `X-RateLimit-Limit` and `X-RateLimit-Reset` headers
+
+### Running Without Redis
+
+The gateway works fine without Redis - rate limiting will be automatically disabled:
+
+```bash
+# If Redis is not running, you'll see:
+# "Redis unavailable, rate limiting disabled"
+python -m gateway.app
+```
 
 ## Error Handling
 
@@ -180,26 +211,14 @@ All errors return structured JSON responses:
 
 ## Production Considerations
 
-### Database-Backed Storage
-
-Replace in-memory storage with persistent databases:
-
-```python
-# Use PostgreSQL for API keys
-from sqlalchemy import create_engine
-
-# Use Redis for rate limiting
-import redis
-rate_limiter = RedisRateLimiter(redis_client)
-```
-
-### Security
+### Authentication & Secrets
 
 - Store API keys in environment variables or secret management systems (AWS Secrets Manager, HashiCorp Vault)
 - Use HTTPS in production
 - Implement key rotation policies
 - Add request signing for extra security
 - Consider adding IP whitelisting
+- Replace in-memory API key storage with a database.
 
 ### Monitoring
 
@@ -210,12 +229,12 @@ from prometheus_client import Counter, Histogram
 
 requests_total = Counter('api_requests_total', 'Total requests')
 request_duration = Histogram('request_duration_seconds', 'Request duration')
+rate_limit_hits = Counter('rate_limit_hits_total', 'Rate limit violations')
 ```
 
 ### Scaling
 
 - Run multiple gateway instances behind a load balancer
-- Use Redis for distributed rate limiting
 - Implement circuit breakers for inference service calls
 - Add request queuing for burst handling
 

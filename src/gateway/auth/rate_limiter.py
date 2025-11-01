@@ -1,6 +1,6 @@
 import datetime
 import time
-from collections import defaultdict
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 
@@ -36,7 +36,32 @@ class RateLimitInfo:
     hour_limit: int
 
 
-class RedisSlidingWindowRateLimiter:
+class RateLimiter(ABC):
+
+    @abstractmethod
+    def check_rate_limit(
+        self, user_id: str, minute_limit: int, hour_limit: int
+    ) -> RateLimitInfo:
+        pass
+
+    @abstractmethod
+    def get_usage(self, user_id: str) -> dict:
+        pass
+
+    @abstractmethod
+    def reset_user(self, user_id: str) -> None:
+        pass
+
+    @abstractmethod
+    def is_redis_available(self) -> bool:
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        pass
+
+
+class RedisSlidingWindowRateLimiter(RateLimiter):
     """
     Redis-based sliding window rate limiter with per-minute and per-hour limits.
 
@@ -257,7 +282,7 @@ class RedisSlidingWindowRateLimiter:
                 logger.warning("Error closing Redis connection", error=str(e))
 
 
-class NoOpRateLimiter:
+class NoOpRateLimiter(RateLimiter):
     """
     No-operation rate limiter that always allows requests.
 
