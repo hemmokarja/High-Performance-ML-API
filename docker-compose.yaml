@@ -1,4 +1,28 @@
 services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   inference-api:
     build:
       context: .
@@ -49,7 +73,10 @@ services:
       - INFERENCE_URL=http://inference-api:${INFERENCE_PORT:-8001}
       - NUM_UVICORN_WORKERS=${NUM_UVICORN_WORKERS:-1}
       - BYPASS_RATE_LIMITS=${BYPASS_RATE_LIMITS:-false}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
+      redis:
+        condition: service_healthy
       inference-api:
         condition: service_healthy
     restart: unless-stopped
@@ -140,4 +167,6 @@ volumes:
   prometheus-data:
     driver: local
   grafana-data:
+    driver: local
+  redis-data:
     driver: local
