@@ -32,6 +32,7 @@ make start-gateway
 or with `docker-compose` (includes Redis)
 
 ```bash
+make build
 make up
 ```
 
@@ -140,13 +141,7 @@ Readiness check for Kubernetes (no auth required).
 
 ```env
 # Gateway
-GATEWAY_PORT=8000
-REDIS_URL=redis://localhost:6379/0
 BYPASS_RATE_LIMITS=false  # Set to 'true' to disable rate limiting
-
-# Rate Limits
-RATE_LIMIT_MINUTE=60
-RATE_LIMIT_HOUR=1000
 
 # API Key (optional - auto-generated if not set)
 API_KEY=sk_dev_your_key_here
@@ -212,31 +207,13 @@ All errors return structured JSON responses:
 ## Production Considerations
 
 ### Authentication & Secrets
+### Authentication & Secrets
 
 - Store API keys in environment variables or secret management systems (AWS Secrets Manager, HashiCorp Vault)
 - Use HTTPS in production
 - Implement key rotation policies
 - Add request signing for extra security
 - Consider adding IP whitelisting
-- Replace in-memory API key storage with a database.
-
-### Monitoring
-
-Integrate with monitoring tools:
-
-```python
-from prometheus_client import Counter, Histogram
-
-requests_total = Counter('api_requests_total', 'Total requests')
-request_duration = Histogram('request_duration_seconds', 'Request duration')
-rate_limit_hits = Counter('rate_limit_hits_total', 'Rate limit violations')
-```
-
-### Scaling
-
-- Run multiple gateway instances behind a load balancer
-- Implement circuit breakers for inference service calls
-- Add request queuing for burst handling
 
 ## API Documentation
 
