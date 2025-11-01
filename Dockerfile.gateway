@@ -39,4 +39,5 @@ CMD uv run python -m src.gateway.app \
     --inference-url ${INFERENCE_URL:-"http://inference-api:8001"} \
     --rate-limit-minute 60 \
     --rate-limit-hour 1000 \
-    --workers ${NUM_UVICORN_WORKERS:-1}
+    --workers ${NUM_UVICORN_WORKERS:-1} \
+    --redis-url ${REDIS_URL:-"redis://redis:6379/0"}

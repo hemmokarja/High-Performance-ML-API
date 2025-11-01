@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from gateway.api import exception_handlers, routes, lifespan as lifespan_module
+from gateway.auth import rate_limiter as rate_limiter_module
 from gateway.auth.api_key_db import ApiKeyDB
-from gateway.auth.rate_limiter import SlidingWindowRateLimiter
 from gateway.auth.auth import AuthService
 
 load_dotenv()
@@ -19,6 +19,7 @@ DEFAULT_PORT = 8000
 DEFAULT_INFERENCE_URL = "http://localhost:8001"
 DEFAULT_RATE_LIMIT_MINUTE = 60
 DEFAULT_RATE_LIMIT_HOUR = 1000
+DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 
 
 def parse_args():
@@ -62,6 +63,17 @@ def parse_args():
         default=1,
         help="Number of Uvicorn workers to use",
     )
+    parser.add_argument(
+        "--redis-url",
+        type=str,
+        default=DEFAULT_REDIS_URL,
+        help="Redis connection URL for distributed rate limiting",
+    )
+    parser.add_argument(
+        "--bypass-rate-limits",
+        action="store_true",
+        help="Disable rate limiting entirely",
+    )
     return parser.parse_args()
 
 
@@ -74,6 +86,8 @@ def _initialize_dev_api_key(
     Initialize the API key database with default key.
     First checks for API_KEY in environment variables. If not found, generates a new
     key and prints it.
+
+    NOTE: this is implemented for convenience, not somethign would do in production.
     """
     dev_key = os.environ.get("API_KEY")
     if dev_key:
@@ -98,10 +112,16 @@ def _initialize_dev_api_key(
 
 
 def _create_app(
-    inference_url: str, rate_limit_minute: int, rate_limit_hour: int
+    inference_url: str,
+    rate_limit_minute: int,
+    rate_limit_hour: int,
+    redis_url: str,
+    bypass_rate_limits: bool,
 ) -> FastAPI:
     api_key_db = ApiKeyDB()
-    rate_limiter = SlidingWindowRateLimiter()
+    rate_limiter = rate_limiter_module.create_rate_limiter(
+        redis_url, bypass_rate_limits
+    )
     auth_service = AuthService(api_key_db, rate_limiter)
 
     _initialize_dev_api_key(api_key_db, rate_limit_minute, rate_limit_hour)
@@ -129,6 +149,7 @@ def _create_app(
         inference_url=inference_url,
         rate_limit_minute=rate_limit_minute,
         rate_limit_hour=rate_limit_hour,
+        rate_limiter_type=type(rate_limiter).__name__,
     )
 
     return app
@@ -137,10 +158,16 @@ def _create_app(
 # need to init app globally to allow multiple workers, which requires passing app path 
 # string to uvicorn.run()
 args = parse_args()
+
+bypass_rate_limits_env = os.environ.get("BYPASS_RATE_LIMITS", "false").lower() == "true"
+bypass_rate_limits = args.bypass_rate_limits or bypass_rate_limits_env
+
 app = _create_app(
     inference_url=args.inference_url,
     rate_limit_minute=args.rate_limit_minute,
     rate_limit_hour=args.rate_limit_hour,
+    redis_url=args.redis_url,
+    bypass_rate_limits=bypass_rate_limits_env,
 )
 
 if __name__ == "__main__":

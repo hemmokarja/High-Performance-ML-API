@@ -44,9 +44,6 @@ load-test-gateway:
 		-f src/benchmarks/locustfile_gateway.py
 
 build:
-	@docker compose build
-
-up:
 	@INFERENCE_PORT=$(INFERENCE_PORT) \
 		MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
 		BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
@@ -54,7 +51,10 @@ up:
 		GATEWAY_PORT=$(GATEWAY_PORT) \
 		INFERENCE_URL=http://inference-api:$(INFERENCE_PORT) \
 		NUM_UVICORN_WORKERS=$(NUM_UVICORN_WORKERS) \
-		BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) \
+		docker compose build
+
+up:
+	@BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) \
 		docker compose up -d
 
 down:
