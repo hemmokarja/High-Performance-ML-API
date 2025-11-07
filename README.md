@@ -109,7 +109,7 @@ Post-training optimizations include:
    make onnx-export
    ```
 
-   If you don't want to use ONNX runtime, set `USE_ONNX=false` in `Makefile`
+   If you don't want to use ONNX runtime, set `USE_ONNX=false` in `Makefile` before running the application.
 
 ### Running the Services
 
