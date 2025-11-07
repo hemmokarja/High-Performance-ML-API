@@ -154,9 +154,6 @@ Prometheus metrics endpoint for monitoring.
 ```env
 # Hugging Face authentication (if using private models)
 HF_TOKEN=your_hugging_face_token_here
-
-# Model configuration (supports HF sentence transformers)
-MODEL_NAME=sentence-transformers/all-mpnet-base-v2
 ```
 
 ### Command Line Arguments

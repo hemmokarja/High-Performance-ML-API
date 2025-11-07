@@ -120,14 +120,6 @@ batcher_batch_size_bucket{le="2.0"} 89.0
 - **Grafana**: Queries Prometheus for historical data
 - **Volumes**: Data persists across container restarts
 
-## Performance Impact
-
-Monitoring overhead is minimal:
-- Prometheus scrapes every 5 seconds (configurable)
-- Metrics collection is ~microseconds per request
-- CPU: <0.5 cores combined (Prometheus + Grafana)
-- Memory: ~512MB combined
-
 ## Troubleshooting
 
 ### Prometheus Not Scraping
@@ -148,16 +140,6 @@ If inference-api shows "DOWN":
 1. Verify Prometheus datasource: Grafana → Configuration → Data Sources → Prometheus → Test
 2. Check Prometheus has data: http://localhost:9090/graph
 3. Ensure time range in Grafana includes data (try "Last 15 minutes")
-
-### Dashboard Not Appearing
-
-1. Check provisioning: `docker-compose logs grafana`
-2. Verify files exist:
-   ```bash
-   ls -la monitoring/grafana/provisioning/dashboards/
-   ls -la monitoring/grafana/dashboards/
-   ```
-3. Restart Grafana: `docker-compose restart grafana`
 
 ## Resources
 
