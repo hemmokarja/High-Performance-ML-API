@@ -7,14 +7,18 @@ BATCH_TIMEOUT?=0.01
 NUM_BATCHING_WORKERS?=2
 NUM_UVICORN_WORKERS?=4
 BYPASS_RATE_LIMITS?=false
+USE_ONNX?=true
+
 
 start-inference:
+	@ ./scripts/check-onnx.sh $(USE_ONNX)
 	@uv run python src/inference/app.py \
 		--host 0.0.0.0 \
 		--port $(INFERENCE_PORT) \
 		--max-batch-size $(MAX_BATCH_SIZE) \
 		--batch-timeout $(BATCH_TIMEOUT) \
-		--num-batching-workers $(NUM_BATCHING_WORKERS)
+		--num-batching-workers $(NUM_BATCHING_WORKERS) \
+		--use-onnx $(USE_ONNX)
 
 start-gateway:
 	@BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) uv run python src/gateway/app.py \
@@ -43,18 +47,23 @@ load-test-gateway:
 		-d "30s" \
 		-f src/benchmarks/locustfile_gateway.py
 
+onnx-export:
+	@uv run python src/onnx_util/huggingface_export.py
+
 build:
-	@INFERENCE_PORT=$(INFERENCE_PORT) \
+	docker compose build
+
+up:
+	@ ./scripts/check-onnx.sh $(USE_ONNX)
+	@BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) \
+		INFERENCE_PORT=$(INFERENCE_PORT) \
 		MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
 		BATCH_TIMEOUT=$(BATCH_TIMEOUT) \
 		NUM_BATCHING_WORKERS=$(NUM_BATCHING_WORKERS) \
 		GATEWAY_PORT=$(GATEWAY_PORT) \
 		INFERENCE_URL=http://inference-api:$(INFERENCE_PORT) \
 		NUM_UVICORN_WORKERS=$(NUM_UVICORN_WORKERS) \
-		docker compose build
-
-up:
-	@BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) \
+		USE_ONNX=$(USE_ONNX) \
 		docker compose up -d
 
 down:

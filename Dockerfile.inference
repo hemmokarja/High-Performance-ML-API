@@ -32,6 +32,8 @@ COPY --chown=apiuser:apiuser src ./src
 COPY --chown=apiuser:apiuser .env .env
 RUN uv sync --no-cache --extra cu128
 
+COPY --chown=apiuser:apiuser onnx_models onnx_models
+
 EXPOSE ${PORT:-8001}
 
 CMD uv run python -m src.inference.app \
@@ -39,4 +41,5 @@ CMD uv run python -m src.inference.app \
     --port ${PORT:-8001} \
     --max-batch-size ${MAX_BATCH_SIZE:-32} \
     --batch-timeout ${BATCH_TIMEOUT:-0.01} \
-    --num-batching-workers ${NUM_BATCHING_WORKERS:-2}
+    --num-batching-workers ${NUM_BATCHING_WORKERS:-2} \
+    --use-onnx ${USE_ONNX:-false}

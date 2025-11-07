@@ -168,6 +168,7 @@ python -m inference.app \
   --max-batch-size 32 \
   --batch-timeout 0.01 \
   --num-batching-workers 2
+  --use-onnx false  # for true, need to export with `make onnx-export`
 ```
 
 ## Error Handling

@@ -10,6 +10,7 @@ dependencies = [
     "ipykernel>=7.0.1",
     "locust>=2.42.0",
     "numpy>=2.3.4",
+    "onnx>=1.19.1",
     "prometheus-client>=0.23.1",
     "prometheus-fastapi-instrumentator>=7.1.0",
     "python-dotenv>=1.1.1",
@@ -20,8 +21,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = ["torch==2.8"]
-cu128 = ["torch==2.8"]
+cpu = [
+    "torch==2.8",
+    "onnxruntime",
+]
+cu128 = [
+    "torch==2.8",
+    "onnxruntime-gpu",
+]
 
 [tool.uv]
 conflicts = [
@@ -49,7 +56,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["benchmarks*", "inference*", "gateway*"]
+include = ["benchmarks*", "inference*", "gateway*", "onnx_util*"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
