@@ -36,6 +36,7 @@ services:
       - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-32}
       - BATCH_TIMEOUT=${BATCH_TIMEOUT:-0.01}
       - NUM_BATCHING_WORKERS=${NUM_BATCHING_WORKERS:-2}
+      - USE_ONNX=${USE_ONNX:-false}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:

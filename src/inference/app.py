@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from inference.api import exception_handlers, routes, lifespan as lifespan_module
-from inference.models.hugginface import HugginFaceEmbeddingModel
+from inference.models import huggingface
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
@@ -24,7 +24,13 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8001
 
 
-def parse_args():
+def _str_to_bool(v):
+    if isinstance(v, bool):
+        return v
+    return v.lower() in ("yes", "true", "t", "1", "y")
+
+
+def _parse_args():
     parser = argparse.ArgumentParser(
         description="Text Embedding Model API Server",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -62,13 +68,23 @@ def parse_args():
         default=DEFAULT_NUM_WORKERS,
         help="Number of worker threads for batch processing",
     )
+    parser.add_argument(
+        "--use-onnx",
+        type=_str_to_bool,
+        default=False,
+        help="Use ONNX instead of PyTorch model"
+    )
     return parser.parse_args()
 
 
-def _create_app(max_batch_size: int, batch_timeout: float, num_workers: int) -> FastAPI:
+def _create_app(
+    max_batch_size: int, batch_timeout: float, num_workers: int, use_onnx: bool = False
+) -> FastAPI:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     lifespan = lifespan_module.create_lifespan(
-        model_factory=lambda: HugginFaceEmbeddingModel(MODEL_NAME, HF_TOKEN, device),
+        model_factory=lambda: huggingface.model_factory(
+            MODEL_NAME, HF_TOKEN, device, use_onnx
+        ),
         max_batch_size=max_batch_size,
         batch_timeout=batch_timeout,
         num_workers=num_workers,
@@ -92,11 +108,12 @@ def _create_app(max_batch_size: int, batch_timeout: float, num_workers: int) -> 
 
 
 def main():
-    args = parse_args()
+    args = _parse_args()
     app = _create_app(
         max_batch_size=args.max_batch_size,
         batch_timeout=args.batch_timeout,
         num_workers=args.num_batching_workers,
+        use_onnx=args.use_onnx,
     )
 
     Instrumentator().instrument(app).expose(app)

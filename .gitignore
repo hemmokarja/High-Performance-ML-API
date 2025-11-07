@@ -14,3 +14,6 @@ _*.ipynb
 .env
 reports
 tmp.txt
+
+onnx_models/*
+!onnx_models/.gitkeep
