@@ -10,8 +10,8 @@ BYPASS_RATE_LIMITS?=false
 USE_ONNX?=true
 
 
-# TODO add script for checking the ONNX model dir situation
 start-inference:
+	@ ./scripts/check-onnx.sh $(USE_ONNX)
 	@uv run python src/inference/app.py \
 		--host 0.0.0.0 \
 		--port $(INFERENCE_PORT) \
@@ -54,6 +54,7 @@ build:
 	docker compose build
 
 up:
+	@ ./scripts/check-onnx.sh $(USE_ONNX)
 	@BYPASS_RATE_LIMITS=$(BYPASS_RATE_LIMITS) \
 		INFERENCE_PORT=$(INFERENCE_PORT) \
 		MAX_BATCH_SIZE=$(MAX_BATCH_SIZE) \
