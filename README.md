@@ -4,7 +4,7 @@ A production-ready machine learning inference service demonstrating advanced ML 
 
 ## 🎯 Project Overview
 
-This project serves as a comprehensive demonstration of building scalable, high-performance ML inference systems. While I use a pre-trained BERT embedding model from Hugging Face as the example workload, the architecture is intentionally model-agnostic—you can adapt these components to serve virtually any model that benefits from batching with minimal code changes.
+This project serves as a comprehensive demonstration of building scalable, high-performance ML inference systems. While I use a pre-trained BERT embedding model from Hugging Face as the example workload, the architecture is intentionally model-agnostic - you can adapt these components to serve virtually any model that benefits from batching with minimal code changes.
 
 Think of this as a real-time embedding microservice capable of vectorizing user queries for downstream tasks like semantic search, but the patterns and optimizations apply broadly across ML serving scenarios.
 
@@ -55,7 +55,7 @@ Both services benefit from:
 
 ## ⚡ Performance Optimizations
 
-### 1. Asynchronous Dynamic Batching
+### Asynchronous Dynamic Batching
 
 The batching system uses a worker pool architecture that maintains high throughput while minimizing latency:
 
@@ -71,7 +71,7 @@ The batching system uses a worker pool architecture that maintains high throughp
 
 This dual-threshold approach with concurrent collection and inference allows the system to maintain sub-second latencies even under high load, while achieving throughput improvements of 5x or more compared to serial processing.
 
-### 2. ONNX Runtime with FP16 Precision
+### ONNX Runtime with FP16 Precision
 
 Post-training optimizations include:
 - **ONNX Export**: Cross-platform inference runtime with graph optimizations
