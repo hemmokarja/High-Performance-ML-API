@@ -81,7 +81,7 @@ def main():
         output_names=output_names,
         dynamic_axes=dynamic_axes,
         use_fp16=args.use_fp16,
-        fp16_mode="post_conversion",  # more stable
+        fp16_mode="native",  # more stable
         opset_version=17
     )
 

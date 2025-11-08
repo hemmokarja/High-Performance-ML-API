@@ -19,7 +19,7 @@ def export_pytorch_to_onnx(
     output_names: List[str],
     dynamic_axes: Optional[Dict[str, Dict[int, str]]] = None,
     use_fp16: bool = False,
-    fp16_mode: str = "post_conversion",
+    fp16_mode: str = "native",
     opset_version: int = 16,
 ) -> None:
     """
@@ -49,15 +49,13 @@ def export_pytorch_to_onnx(
     output_path = str(output_path)
 
     model.eval()
+    model = model.cpu()
 
     if use_fp16 and fp16_mode == "native":
         logger.info("Converting model to FP16 before export...")
         model = model.half()
-        dummy_inputs_processed = {k: v.half() for k, v in dummy_inputs.items()}
-    else:
-        model = model.cpu()
-        dummy_inputs_processed = {k: v.cpu() for k, v in dummy_inputs.items()}
 
+    dummy_inputs_processed = {k: v.cpu() for k, v in dummy_inputs.items()}
     dummy_input_tuple = tuple(dummy_inputs_processed[name] for name in input_names)
 
     with torch.no_grad():
@@ -90,7 +88,7 @@ def _convert_onnx_to_fp16(
 ) -> None:
     """
     Convert an ONNX model from FP32 to FP16.
-    
+
     Args:
         input_path: Path to FP32 ONNX model
         output_path: Path to save FP16 ONNX model
