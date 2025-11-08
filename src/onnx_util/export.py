@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 import onnx
 import structlog
 import torch
+from onnxconverter_common import float16
 
 logger = structlog.get_logger(__name__)
 
@@ -16,38 +17,53 @@ def export_pytorch_to_onnx(
     input_names: List[str],
     output_names: List[str],
     dynamic_axes: Optional[Dict[str, Dict[int, str]]] = None,
+    use_fp16: bool = False,
+    fp16_mode: str = "post_conversion",
     opset_version: int = 16,
 ) -> None:
     """
-    Export any PyTorch model to ONNX format.
+    Export any PyTorch model to ONNX format with optional FP16 precision.
 
     Args:
         model: PyTorch model in eval mode
         dummy_inputs: Dictionary of input tensors for tracing
-                      e.g.,
-                      {"input_ids": torch.zeros(...), "attention_mask": torch.ones(...)}
         output_path: Where to save the .onnx file
         input_names: List of input names matching dummy_inputs keys
         output_names: List of output names
         dynamic_axes: Dict specifying which dimensions are dynamic
-                      e.g., {"input_ids": {0: "batch", 1: "sequence"}}
+        use_fp16: Whether to convert model to FP16
+        fp16_mode: "post_conversion" (convert after export) or "native" (export FP16
+                   directly)
         opset_version: ONNX opset version
     """
+    if fp16_mode not in ["native", "post_conversion"]:
+        raise ValueError(
+            f"Expected fp16_mode to be native or post_conversion, got {fp16_mode}"
+        )
+
     logger.info("Starting ONNX export...")
-    output_path_ = Path(output_path)
-    output_path_.parent.mkdir(parents=True, exist_ok=True)
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path = str(output_path)
 
     model.eval()
-    model = model.cpu()
 
-    dummy_inputs_cpu = {k: v.cpu() for k, v in dummy_inputs.items()}
-    dummy_input_tuple = tuple(dummy_inputs_cpu[name] for name in input_names)
+    if use_fp16 and fp16_mode == "native":
+        logger.info("Converting model to FP16 before export...")
+        model = model.half()
+        dummy_inputs_processed = {k: v.half() for k, v in dummy_inputs.items()}
+    else:
+        model = model.cpu()
+        dummy_inputs_processed = {k: v.cpu() for k, v in dummy_inputs.items()}
+
+    dummy_input_tuple = tuple(dummy_inputs_processed[name] for name in input_names)
 
     with torch.no_grad():
         torch.onnx.export(
             model,
             dummy_input_tuple,
-            output_path_,
+            output_path,
             export_params=True,  # store trained weights
             opset_version=opset_version,
             do_constant_folding=True,  # optimize constants
@@ -58,7 +74,34 @@ def export_pytorch_to_onnx(
         )
 
     logger.info(f"ONNX export complete, saved to: {output_path}")
+
+    if use_fp16 and fp16_mode == "post_conversion":
+        _convert_onnx_to_fp16(output_path)
+
     _validate_onnx_model(output_path)
+
+
+def _convert_onnx_to_fp16(
+    output_path: str, keep_io_types: bool = True, disable_shape_infer: bool = False,
+) -> None:
+    """
+    Convert an ONNX model from FP32 to FP16.
+    
+    Args:
+        input_path: Path to FP32 ONNX model
+        output_path: Path to save FP16 ONNX model
+        keep_io_types: Keep input/output in FP32 (recommended for compatibility)
+        disable_shape_infer: Disable shape inference (use if conversion fails)
+    """
+    logger.info("Converting ONNX model to FP16...")
+    model = onnx.load(output_path)
+    model_fp16 = float16.convert_float_to_float16(
+        model,
+        keep_io_types=keep_io_types,
+        disable_shape_infer=disable_shape_infer,
+    )
+    onnx.save(model_fp16, output_path)
+    logger.info(f"Successfully converted model to FP16, saved to: {output_path}")
 
 
 def _log_shapes(elements):
