@@ -1,11 +1,12 @@
 import os
-from typing import Optional, List
+from typing import Dict, Optional, List
 
 import numpy as np
 import onnxruntime as ort
 import torch
 import torch.nn.functional as F
 import structlog
+from torch.nn.utils import rnn
 from transformers import AutoTokenizer, AutoModel
 
 from inference.models.base import BaseEmbeddingModel
@@ -48,16 +49,38 @@ class HuggingFaceEmbeddingModel(BaseEmbeddingModel):
             f"on device {self.device}"
         )
 
-    def predict(self, batch: List[str]) -> List[np.ndarray]:
-        encoded_input = self.tokenizer(
-            batch, padding=True, truncation=True, return_tensors="pt"
+    def encode_inputs(self, text: str) -> Dict[str, torch.Tensor]:
+        """Tokenize single text on CPU, async safe"""
+        encoded = self.tokenizer(
+            text, 
+            padding=False,
+            truncation=True, 
+            return_tensors="pt"
         )
-        encoded_input = encoded_input.to(self.device)
+        return {k: v.squeeze(0) for k, v in encoded.items()}
+
+    def predict(self, batch_data: List[Dict[str, torch.Tensor]]) -> List[np.ndarray]:
+
+        input_ids = rnn.pad_sequence(
+            [item["input_ids"] for item in batch_data],
+            batch_first=True,
+            padding_value=self.tokenizer.pad_token_id
+        )
+        attention_mask = rnn.pad_sequence(
+            [item["attention_mask"] for item in batch_data],
+            batch_first=True,
+            padding_value=0
+        )
+        batch = {
+            "input_ids": input_ids.to(self.device),
+            "attention_mask": attention_mask.to(self.device)
+        }
+
         with torch.no_grad():
-            model_out = self.model(**encoded_input)
+            model_out = self.model(**batch)
 
         last_hidden = model_out[0]  # first element contains token embeddings
-        emb = self._mean_pool(last_hidden, encoded_input["attention_mask"])  # [B, T]
+        emb = self._mean_pool(last_hidden, batch["attention_mask"])  # [B, T]
         emb = F.normalize(emb, p=2, dim=1)  # [B, T]
         emb = emb.cpu().numpy()
         return [emb[i] for i in range(emb.shape[0])]
@@ -130,21 +153,38 @@ class HuggingFaceONNXEmbeddingModel(BaseEmbeddingModel):
         self.session = ort.InferenceSession(self.onnx_path, providers=providers)
 
         logger.info(f"Initialized ONNX model: {self.onnx_path}", providers=providers)
-
-    def predict(self, batch: List[str]) -> List[np.ndarray]:
+    
+    def encode_inputs(self, text: str) -> Dict[str, np.ndarray]:
+        """Tokenize single text, async safe, CPU only"""
         encoded = self.tokenizer(
-            batch, padding=True, truncation=True, return_tensors="np"
+            text,
+            padding=False,  # Don't pad yet
+            truncation=True,
+            return_tensors="np"
         )
-        outputs = self.session.run(
-            None,  # return all outputs
-            {
-                "input_ids": encoded["input_ids"],
-                "attention_mask": encoded["attention_mask"],
-            },
+        return {k: v.squeeze(0) for k, v in encoded.items()}
+
+    def predict(self, batch_data: List[Dict[str, np.ndarray]]) -> List[np.ndarray]:
+
+        # collate to batch
+        max_len = max(item["input_ids"].shape[0] for item in batch_data)
+        batch_size = len(batch_data)
+
+        input_ids = np.full(
+            (batch_size, max_len), self.tokenizer.pad_token_id, dtype=np.int64
         )
+        attention_mask = np.zeros((batch_size, max_len), dtype=np.int64)
+
+        for i, item in enumerate(batch_data):
+            seq_len = item["input_ids"].shape[0]
+            input_ids[i, :seq_len] = item["input_ids"]
+            attention_mask[i, :seq_len] = item["attention_mask"]
+
+        batch = {"input_ids": input_ids, "attention_mask": attention_mask}
+        outputs = self.session.run(None, batch)
 
         last_hidden = outputs[0]
-        pooled = self._mean_pool(last_hidden, encoded["attention_mask"])
+        pooled = self._mean_pool(last_hidden, attention_mask)
         pooled = pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
 
         return [pooled[i] for i in range(pooled.shape[0])]

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List, Any
 
 from inference.api import metrics
+from inference.models.base import BaseEmbeddingModel
 
 import structlog
 
@@ -14,9 +15,10 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class Request:
     id: int
-    data: Any
     future: asyncio.Future
-    timestamp: float  # for latency tracking
+    timestamp: float
+    data: Any
+    preprocessed_data: Any = None  # store tensorized data
 
 
 class DynamicBatcher:
@@ -30,16 +32,20 @@ class DynamicBatcher:
     How it works:
     - Start long-lived background workers that continuously process requests
     - When predict() is called, the request is added to a queue
-    - Workers collect requests into batches until either:
+    - Workers collect requests into batches and preprocess them in parallel:
+        * Each request is preprocessed (e.g., tokenized) asynchronously while waiting
+        * This parallelizes CPU-bound preprocessing with GPU inference
+    - Batches are processed when either:
         * The batch reaches max_batch_size, OR
         * batch_timeout time has elapsed since the first request
-    - The batch is then processed by the model in a separate thread pool (this allows
-      background workers to collect batches while model does inference)
+    - The preprocessed batch is sent to the model in a separate thread pool for
+      inference (this allows workers to continue collecting and preprocessing the
+      next batch)
     - Results are returned to the original callers via their futures
     """
     def __init__(
         self, 
-        model,
+        model: BaseEmbeddingModel,
         max_batch_size: int = 32,
         batch_timeout: float = 0.01,
         num_workers: int = 1
@@ -150,6 +156,12 @@ class DynamicBatcher:
             # check for shutdown sentinel
             if first_item is None:
                 return
+            
+            first_item.preprocessed_data = await loop.run_in_executor(
+                None,  # use default executor for CPU work
+                self.model.encode_inputs,
+                first_item.data
+            )
 
             # start batch with first request
             batch = [first_item]
@@ -178,6 +190,12 @@ class DynamicBatcher:
                             await self._process_batch(loop, batch, worker_id)
                         return
 
+                    item.preprocessed_data = await loop.run_in_executor(
+                        None,  # use default executor for CPU work
+                        self.model.encode_inputs,
+                        item.data
+                    )
+
                     batch.append(item)
 
                 except asyncio.TimeoutError:
@@ -192,7 +210,7 @@ class DynamicBatcher:
         self, loop, batch: List[Request], worker_id: int, wait_time: float = 0
     ):
         start_time = time.time()
-        batch_data = [req.data for req in batch]
+        batch_data = [req.preprocessed_data for req in batch]
 
         metrics.BATCH_SIZE.observe(len(batch))
         metrics.BATCH_WAIT_TIME.observe(wait_time)

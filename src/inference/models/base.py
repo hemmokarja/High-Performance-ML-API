@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List
 
 import numpy as np
 import torch
@@ -8,7 +8,11 @@ import torch
 class BaseEmbeddingModel(ABC):
 
     @abstractmethod
-    def predict(self, batch: List[str]) -> List[np.ndarray]:
+    def predict(self, batch_data: List[Dict[str, torch.Tensor]]) -> List[np.ndarray]:
+        pass
+
+    @abstractmethod
+    def encode_inputs(self, text: str) -> Dict[str, torch.Tensor]:
         pass
 
     @abstractmethod
