@@ -8,6 +8,7 @@ NUM_BATCHING_WORKERS?=2
 NUM_UVICORN_WORKERS?=4
 BYPASS_RATE_LIMITS?=false
 USE_ONNX?=true
+USE_FP16?=true
 
 
 start-inference:
@@ -48,7 +49,7 @@ load-test-gateway:
 		-f src/benchmarks/locustfile_gateway.py
 
 onnx-export:
-	@uv run python src/onnx_util/huggingface_export.py
+	@uv run python src/onnx_util/huggingface_export.py --use-fp16 $(USE_FP16)
 
 build:
 	docker compose build
