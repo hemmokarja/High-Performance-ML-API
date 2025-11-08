@@ -11,6 +11,7 @@ dependencies = [
     "locust>=2.42.0",
     "numpy>=2.3.4",
     "onnx>=1.19.1",
+    "onnxconverter-common>=1.16.0",
     "prometheus-client>=0.23.1",
     "prometheus-fastapi-instrumentator>=7.1.0",
     "python-dotenv>=1.1.1",
