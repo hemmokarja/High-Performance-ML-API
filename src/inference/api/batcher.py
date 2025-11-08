@@ -156,12 +156,6 @@ class DynamicBatcher:
             # check for shutdown sentinel
             if first_item is None:
                 return
-            
-            first_item.preprocessed_data = await loop.run_in_executor(
-                None,  # use default executor for CPU work
-                self.model.encode_inputs,
-                first_item.data
-            )
 
             # start batch with first request
             batch = [first_item]
@@ -190,12 +184,6 @@ class DynamicBatcher:
                             await self._process_batch(loop, batch, worker_id)
                         return
 
-                    item.preprocessed_data = await loop.run_in_executor(
-                        None,  # use default executor for CPU work
-                        self.model.encode_inputs,
-                        item.data
-                    )
-
                     batch.append(item)
 
                 except asyncio.TimeoutError:
@@ -210,19 +198,21 @@ class DynamicBatcher:
         self, loop, batch: List[Request], worker_id: int, wait_time: float = 0
     ):
         start_time = time.time()
-        batch_data = [req.preprocessed_data for req in batch]
+        batch_data = [req.data for req in batch]
 
         metrics.BATCH_SIZE.observe(len(batch))
         metrics.BATCH_WAIT_TIME.observe(wait_time)
+
+        batch_tensors = await loop.run_in_executor(
+            None, self.model.encode_inputs, batch_data
+        )
 
         self.inflight_batches += 1
         try:
             # execute blocking inference in a separate thread pool to not block
             # event loop
             results = await loop.run_in_executor(
-                self.executor,
-                self.model.predict,
-                batch_data
+                self.executor, self.model.predict, batch_tensors
             )
         except Exception as e:
             # set exception on all futures

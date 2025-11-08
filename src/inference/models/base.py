@@ -8,11 +8,13 @@ import torch
 class BaseEmbeddingModel(ABC):
 
     @abstractmethod
-    def predict(self, batch_data: List[Dict[str, torch.Tensor]]) -> List[np.ndarray]:
+    def predict(
+        self, batch_tensors: Dict[str, torch.Tensor | np.ndarray]
+    ) -> List[np.ndarray]:
         pass
 
     @abstractmethod
-    def encode_inputs(self, text: str) -> Dict[str, torch.Tensor]:
+    def encode_inputs(self, texts: str) -> Dict[str, torch.Tensor | np.ndarray]:
         pass
 
     @abstractmethod

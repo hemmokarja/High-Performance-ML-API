@@ -49,38 +49,23 @@ class HuggingFaceEmbeddingModel(BaseEmbeddingModel):
             f"on device {self.device}"
         )
 
-    def encode_inputs(self, text: str) -> Dict[str, torch.Tensor]:
+    def encode_inputs(self, texts: List[str]) -> Dict[str, torch.Tensor]:
         """Tokenize single text on CPU, async safe"""
-        encoded = self.tokenizer(
-            text, 
-            padding=False,
+        return self.tokenizer(
+            texts, 
+            padding=True,
             truncation=True, 
             return_tensors="pt"
         )
-        return {k: v.squeeze(0) for k, v in encoded.items()}
 
-    def predict(self, batch_data: List[Dict[str, torch.Tensor]]) -> List[np.ndarray]:
-
-        input_ids = rnn.pad_sequence(
-            [item["input_ids"] for item in batch_data],
-            batch_first=True,
-            padding_value=self.tokenizer.pad_token_id
-        )
-        attention_mask = rnn.pad_sequence(
-            [item["attention_mask"] for item in batch_data],
-            batch_first=True,
-            padding_value=0
-        )
-        batch = {
-            "input_ids": input_ids.to(self.device),
-            "attention_mask": attention_mask.to(self.device)
-        }
+    def predict(self, batch_tensors: Dict[str, torch.Tensor]) -> List[np.ndarray]:
+        batch_tensors = {k: v.to(self.device) for k, v in batch_tensors.items()}
 
         with torch.no_grad():
-            model_out = self.model(**batch)
+            model_out = self.model(**batch_tensors)
 
         last_hidden = model_out[0]  # first element contains token embeddings
-        emb = self._mean_pool(last_hidden, batch["attention_mask"])  # [B, T]
+        emb = self._mean_pool(last_hidden, batch_tensors["attention_mask"])  # [B, T]
         emb = F.normalize(emb, p=2, dim=1)  # [B, T]
         emb = emb.cpu().numpy()
         return [emb[i] for i in range(emb.shape[0])]
@@ -154,37 +139,25 @@ class HuggingFaceONNXEmbeddingModel(BaseEmbeddingModel):
 
         logger.info(f"Initialized ONNX model: {self.onnx_path}", providers=providers)
     
-    def encode_inputs(self, text: str) -> Dict[str, np.ndarray]:
+    def encode_inputs(self, texts: List[str]) -> Dict[str, np.ndarray]:
         """Tokenize single text, async safe, CPU only"""
-        encoded = self.tokenizer(
-            text,
-            padding=False,  # Don't pad yet
+        return self.tokenizer(
+            texts,
+            padding=True,
             truncation=True,
             return_tensors="np"
         )
-        return {k: v.squeeze(0) for k, v in encoded.items()}
 
-    def predict(self, batch_data: List[Dict[str, np.ndarray]]) -> List[np.ndarray]:
+    def predict(self, batch_arrays: Dict[str, np.ndarray]) -> List[np.ndarray]:
 
-        # collate to batch
-        max_len = max(item["input_ids"].shape[0] for item in batch_data)
-        batch_size = len(batch_data)
-
-        input_ids = np.full(
-            (batch_size, max_len), self.tokenizer.pad_token_id, dtype=np.int64
-        )
-        attention_mask = np.zeros((batch_size, max_len), dtype=np.int64)
-
-        for i, item in enumerate(batch_data):
-            seq_len = item["input_ids"].shape[0]
-            input_ids[i, :seq_len] = item["input_ids"]
-            attention_mask[i, :seq_len] = item["attention_mask"]
-
-        batch = {"input_ids": input_ids, "attention_mask": attention_mask}
+        batch = {
+            "input_ids": batch_arrays["input_ids"],
+            "attention_mask": batch_arrays["attention_mask"]
+        }
         outputs = self.session.run(None, batch)
 
         last_hidden = outputs[0]
-        pooled = self._mean_pool(last_hidden, attention_mask)
+        pooled = self._mean_pool(last_hidden, batch_arrays["attention_mask"])
         pooled = pooled / np.linalg.norm(pooled, axis=1, keepdims=True)
 
         return [pooled[i] for i in range(pooled.shape[0])]
