@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -82,7 +83,10 @@ def export_pytorch_to_onnx(
 
 
 def _convert_onnx_to_fp16(
-    output_path: str, keep_io_types: bool = True, disable_shape_infer: bool = False,
+    output_path: str,
+    keep_io_types: bool = True,
+    disable_shape_infer: bool = False,
+    suppress_warnings: bool = True
 ) -> None:
     """
     Convert an ONNX model from FP32 to FP16.
@@ -92,14 +96,28 @@ def _convert_onnx_to_fp16(
         output_path: Path to save FP16 ONNX model
         keep_io_types: Keep input/output in FP32 (recommended for compatibility)
         disable_shape_infer: Disable shape inference (use if conversion fails)
+        suppress_warnings: Suppress value truncation warnings (default: True)
     """
     logger.info("Converting ONNX model to FP16...")
     model = onnx.load(output_path)
-    model_fp16 = float16.convert_float_to_float16(
-        model,
-        keep_io_types=keep_io_types,
-        disable_shape_infer=disable_shape_infer,
-    )
+
+    if suppress_warnings:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, module="onnxconverter_common"
+            )
+            model_fp16 = float16.convert_float_to_float16(
+                model,
+                keep_io_types=keep_io_types,
+                disable_shape_infer=disable_shape_infer,
+            )
+    else:
+        model_fp16 = float16.convert_float_to_float16(
+            model,
+            keep_io_types=keep_io_types,
+            disable_shape_infer=disable_shape_infer,
+        )
+
     onnx.save(model_fp16, output_path)
     logger.info(f"Successfully converted model to FP16, saved to: {output_path}")
 
