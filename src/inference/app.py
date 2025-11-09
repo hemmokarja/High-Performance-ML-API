@@ -10,9 +10,12 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from inference.api import exception_handlers, routes, lifespan as lifespan_module
 from inference.models import huggingface
+from shared import logging_config
+from shared.middleware import CorrelationIdASGIMiddleware
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
+logging_config.configure_structlog()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
@@ -96,8 +99,12 @@ def _create_app(
         docs_url="/docs",  # Swagger UI
         redoc_url="/redoc",  # ReDoc
     )
+
+    app.add_middleware(CorrelationIdASGIMiddleware, prefix="inf")
+
     exception_handlers.register_exception_handlers(app)
     routes.register_routes(app)
+
     logger.info(
         "FastAPI application created",
         max_batch_size=max_batch_size,

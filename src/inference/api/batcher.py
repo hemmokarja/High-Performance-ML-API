@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List, Any
 
 from inference.api import metrics
+from shared import correlation_ids
 
 import structlog
 
@@ -17,6 +18,7 @@ class Request:
     data: Any
     future: asyncio.Future
     timestamp: float  # for latency tracking
+    correlation_id: str
 
 
 class DynamicBatcher:
@@ -36,6 +38,11 @@ class DynamicBatcher:
     - The batch is then processed by the model in a separate thread pool (this allows
       background workers to collect batches while model does inference)
     - Results are returned to the original callers via their futures
+
+    Correlation IDs:
+    - Each request captures its correlation ID when added to queue
+    - Batch processing logs all correlation IDs in the batch
+    - Individual request logs use their own correlation ID (via ContextVar)
     """
     def __init__(
         self, 
@@ -125,8 +132,13 @@ class DynamicBatcher:
 
         request_start = time.time()
         future = asyncio.Future()
+
         request = Request(
-            id=id(data), data=data, future=future, timestamp=request_start
+            id=id(data),
+            data=data,
+            future=future,
+            timestamp=request_start,
+            correlation_id=correlation_ids.get_correlation_id() or "unknown"
         )
 
         await self.request_queue.put(request)
@@ -194,10 +206,21 @@ class DynamicBatcher:
         start_time = time.time()
         batch_data = [req.data for req in batch]
 
+        correlation_ids = [req.correlation_id for req in batch]
+
         metrics.BATCH_SIZE.observe(len(batch))
         metrics.BATCH_WAIT_TIME.observe(wait_time)
 
         self.inflight_batches += 1
+
+        logger.info(
+            "Processing batch",
+            worker_id=worker_id,
+            batch_size=len(batch),
+            wait_ms=round(wait_time * 1000, 1),
+            correlation_ids=correlation_ids,
+        )
+
         try:
             # execute blocking inference in a separate thread pool to not block
             # event loop
@@ -207,6 +230,14 @@ class DynamicBatcher:
                 batch_data
             )
         except Exception as e:
+            logger.error(
+                "Batch processing failed",
+                worker_id=worker_id,
+                batch_size=len(batch),
+                correlation_ids=correlation_ids,
+                error=str(e),
+                exc_info=e
+            )
             # set exception on all futures
             for req in batch:
                 if not req.future.done():
@@ -222,11 +253,12 @@ class DynamicBatcher:
         metrics.INFERENCE_TIME.observe(inference_time)
 
         logger.info(
-            "Batch processed",
+            "Batch processed successfully",
             worker_id=worker_id,
             batch_size=len(batch),
             wait_ms=round(wait_time * 1000, 1),
             inference_ms=round(inference_time * 1000, 1),
+            correlation_ids=correlation_ids,
         )
 
         # return results to waiting futures
@@ -266,6 +298,7 @@ class NoBatchingWrapper:
             metrics.REQUEST_LATENCY.observe(time.time() - request_start)
             return results[0]
         except Exception as e:
+            logger.error("Request processing failed", error=str(e), exc_info=e)
             metrics.REQUESTS_TOTAL.labels(status="error").inc()
             metrics.REQUEST_LATENCY.observe(time.time() - request_start)
             raise

@@ -53,10 +53,6 @@ class RateLimiter(ABC):
         pass
 
     @abstractmethod
-    def is_redis_available(self) -> bool:
-        pass
-
-    @abstractmethod
     def close(self) -> None:
         pass
 
@@ -266,13 +262,6 @@ class RedisSlidingWindowRateLimiter(RateLimiter):
 
         logger.info("Rate limit reset", user_id=user_id)
 
-    def is_redis_available(self) -> bool:
-        try:
-            self._redis_client.ping()
-            return True
-        except (RedisConnectionError, RedisError):
-            return False
-
     def close(self) -> None:
         if self._redis_client:
             try:
@@ -315,9 +304,6 @@ class NoOpRateLimiter(RateLimiter):
     def reset_user(self, user_id: str) -> None:
         pass
 
-    def is_redis_available(self) -> bool:
-        return False
-
     def close(self) -> None:
         pass
 
@@ -329,7 +315,7 @@ def create_rate_limiter(redis_url: str, bypass_rate_limits: bool):
     Priority:
     1. If BYPASS_RATE_LIMITS is True, use NoOpRateLimiter
     2. Try to connect to Redis at redis_url
-    3. If Redis fails, use NoOpRateLimiter and log warning
+    3. If Redis fails, use NoOpRateLimiter
 
     Args:
         redis_url: Redis connection URL
@@ -342,19 +328,19 @@ def create_rate_limiter(redis_url: str, bypass_rate_limits: bool):
         logger.warning("Rate limiting disabled via configuration")
         return NoOpRateLimiter()
 
-    rate_limiter = RedisSlidingWindowRateLimiter(redis_url=redis_url)
-    
-    if not rate_limiter.is_redis_available():
-        logger.warning(
-            "Redis not available, rate limiting disabled",
+    try:
+        rate_limiter = RedisSlidingWindowRateLimiter(redis_url=redis_url)
+        logger.info(
+            "Redis rate limiter active",
             redis_url=redis_url,
-            hint="Install Redis locally or start Redis container to enable rate limiting"
+            mode="distributed"
+        )
+        return rate_limiter
+
+    except (RedisConnectionError, RedisError, ConnectionRefusedError) as e:
+        logger.warning(
+            "Redis connection failed, falling back to NoOp rate limiter",
+            error=str(e),
+            redis_url=redis_url
         )
         return NoOpRateLimiter()
-
-    logger.info(
-        "Redis rate limiter active",
-        redis_url=redis_url,
-        mode="distributed"
-    )
-    return rate_limiter

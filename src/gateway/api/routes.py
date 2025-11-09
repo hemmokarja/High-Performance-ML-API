@@ -3,6 +3,7 @@ import structlog
 from fastapi import FastAPI, HTTPException, Request, Depends, status
 
 from gateway.api.schemas import EmbedRequest, EmbedResponse, HealthResponse
+from shared import correlation_ids
 
 logger = structlog.get_logger(__name__)
 
@@ -38,8 +39,14 @@ async def _health_check(request: Request):
 
     inference_health = {"status": "unknown"}
     try:
+        # include correlation ID in health check to inference service
+        headers = {}
+        correlation_id = correlation_ids.get_correlation_id()
+        if correlation_id:
+            headers["X-Correlation-ID"] = correlation_id
+
         response = await app_state.http_client.get(
-            f"{app_state.inference_url}/health", timeout=2.0
+            f"{app_state.inference_url}/health", headers=headers, timeout=2.0
         )
         if response.status_code == 200:
             inference_health = response.json()
@@ -88,11 +95,16 @@ def register_routes(app: FastAPI, verify_api_key_dependency):
         app_state = request.app.state
         
         try:
-            # forward request to inference service
+            headers = {"Content-Type": "application/json"}
+            correlation_id = correlation_ids.get_correlation_id()
+            if correlation_id:
+                headers["X-Correlation-ID"] = correlation_id
+
+            # Forward request to inference service with correlation ID
             response = await app_state.http_client.post(
                 f"{app_state.inference_url}/embed",
                 json={"input_text": embed_request.input_text},
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=30.0
             )
 

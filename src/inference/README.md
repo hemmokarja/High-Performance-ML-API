@@ -9,6 +9,7 @@ High-performance ML inference service with dynamic request batching for efficien
 - **Model Agnostic**: Supports any model that benefits from batch inference
 - **Observability**: Prometheus metrics and Grafana dashboards for monitoring batch sizes, latencies, and throughput
 - **Health Checks**: Production-ready health and readiness endpoints
+- **Correlation IDs**: Request tracking across the inference pipeline
 - **Professional Error Handling**: Comprehensive error responses with proper status codes
 
 ## Architecture
@@ -26,6 +27,7 @@ Request → Queue → Batch Collector Workers → Thread Pool → Model Inferenc
 - **Batch Collectors**: Background workers that group requests
 - **Thread Pool**: Executes blocking model inference without blocking the event loop
 - **Metrics System**: Tracks queue sizes, batch statistics, and latency
+- **Correlation IDs**: Request tracking across the inference pipeline
 
 ## How Dynamic Batching Works
 
@@ -68,7 +70,7 @@ curl -X POST http://localhost:8001/embed \
   -d '{"input_text": "Hello, world!"}'
 
 # health check
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 ```
 
 ## API Reference
@@ -151,9 +153,9 @@ Prometheus metrics endpoint for monitoring.
 
 ### Environment Variables
 
-```env
-# Hugging Face authentication (if using private models)
-HF_TOKEN=your_hugging_face_token_here
+Create a `.env` file in the project root:
+```bash
+HF_TOKEN=your_huggingface_token_here
 ```
 
 ### Command Line Arguments
@@ -168,9 +170,40 @@ python -m inference.app \
   --use-onnx false  # for true, need to export with `make onnx-export`
 ```
 
+## Correlation IDs and Logging
+
+All requests are tracked with correlation IDs that flow through the entire system:
+
+```json
+{
+  "correlation_id": "inf-123e4567-e89b-12d3-a456-426614174000",
+  "event": "Request received",
+  "method": "POST",
+  "path": "/embed",
+}
+```
+
+When processing batches:
+
+```json
+{
+  "correlation_ids": ["inf-123...", "inf-456...", "inf-789..."],
+  "event": "Batch processed successfully",
+  "batch_size": 3,
+  "inference_ms": 12.5,
+  "wait_ms": 8.2
+}
+```
+
+**Benefits:**
+- Trace individual requests through the batching system
+- Debug performance issues for specific requests
+- Correlate gateway logs with inference logs
+- Monitor batch composition and processing
+
 ## Error Handling
 
-All errors return structured JSON responses:
+All errors return structured JSON responses with correlation IDs:
 
 ```json
 {
@@ -213,3 +246,4 @@ Interactive API documentation available at:
 - Increase `max_batch_size` for higher throughput
 - Add more batching workers
 - Consider scaling horizontally with multiple instances
+- Check Grafana dashboards for batch processing metrics

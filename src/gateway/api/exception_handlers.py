@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from gateway.api.schemas import ErrorResponse, RateLimitError
 from gateway.auth.rate_limiter import RateLimitExceeded
+from shared import correlation_ids
 
 logger = structlog.get_logger(__name__)
 
@@ -24,13 +25,19 @@ async def _validation_error_handler(request: Request, exc: RequestValidationErro
         errors=exc.errors()
     )
 
+    response_data = ErrorResponse(
+        error="Validation error",
+        detail=error_details,
+        code="VALIDATION_ERROR"
+    ).model_dump()
+
+    correlation_id = correlation_ids.get_correlation_id()
+    if correlation_id:
+        response_data["correlation_id"] = correlation_id
+    
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=ErrorResponse(
-            error="Validation error",
-            detail=error_details,
-            code="VALIDATION_ERROR"
-        ).model_dump()
+        content=response_data
     )
 
 
@@ -41,14 +48,20 @@ async def _value_error_handler(request: Request, exc: ValueError):
         path=request.url.path,
         error=str(exc)
     )
+    
+    response_data = ErrorResponse(
+        error="Invalid value",
+        detail=str(exc),
+        code="VALUE_ERROR"
+    ).model_dump()
 
+    correlation_id = correlation_ids.get_correlation_id()
+    if correlation_id:
+        response_data["correlation_id"] = correlation_id
+    
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=ErrorResponse(
-            error="Invalid value",
-            detail=str(exc),
-            code="VALUE_ERROR"
-        ).model_dump()
+        content=response_data
     )
 
 
@@ -60,22 +73,33 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
         limit_type=exc.limit_type,
         limit=exc.limit
     )
+    
+    response_data = RateLimitError(
+        error="Rate limit exceeded",
+        detail=str(exc),
+        code="RATE_LIMIT_EXCEEDED",
+        retry_after=exc.retry_after,
+        limit=exc.limit,
+        limit_type=exc.limit_type
+    ).model_dump()
+    
+    correlation_id = correlation_ids.get_correlation_id()
+    if correlation_id:
+        response_data["correlation_id"] = correlation_id
+    
+    headers = {
+        "Retry-After": str(exc.retry_after),
+        "X-RateLimit-Limit": str(exc.limit),
+        "X-RateLimit-Reset": str(exc.retry_after)
+    }
 
+    if correlation_id:
+        headers["X-Correlation-ID"] = correlation_id
+    
     return JSONResponse(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        content=RateLimitError(
-            error="Rate limit exceeded",
-            detail=str(exc),
-            code="RATE_LIMIT_EXCEEDED",
-            retry_after=exc.retry_after,
-            limit=exc.limit,
-            limit_type=exc.limit_type
-        ).model_dump(),
-        headers={
-            "Retry-After": str(exc.retry_after),
-            "X-RateLimit-Limit": str(exc.limit),
-            "X-RateLimit-Reset": str(exc.retry_after)
-        }
+        content=response_data,
+        headers=headers
     )
 
 
@@ -87,14 +111,20 @@ async def _general_exception_handler(request: Request, exc: Exception):
         error=str(exc),
         exc_info=exc
     )
+    
+    response_data = ErrorResponse(
+        error="Internal server error",
+        detail="An unexpected error occurred",
+        code="INTERNAL_ERROR"
+    ).model_dump()
 
+    correlation_id = correlation_ids.get_correlation_id()
+    if correlation_id:
+        response_data["correlation_id"] = correlation_id
+    
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred",
-            code="INTERNAL_ERROR"
-        ).model_dump()
+        content=response_data
     )
 
 
