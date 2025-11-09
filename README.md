@@ -171,7 +171,7 @@ make load-test-gateway
 ├── src/
 │   ├── gateway/          # Public API: auth, rate limiting, routing
 │   ├── inference/        # ML service: batching, model serving, metrics
-│   ├── shared/           # Common utilities: correlation IDs, logging, errors
+│   ├── shared/           # Common utilities: correlation IDs, middleware, logging
 │   ├── benchmarks/       # Locust load testing scenarios
 │   └── onnx_util/        # Model export utilities
 ├── monitoring/
