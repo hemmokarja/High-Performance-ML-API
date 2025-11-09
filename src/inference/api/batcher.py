@@ -18,7 +18,7 @@ class Request:
     data: Any
     future: asyncio.Future
     timestamp: float  # for latency tracking
-    correlation_id: str
+    # correlation_id: str
 
 
 class DynamicBatcher:
@@ -138,7 +138,7 @@ class DynamicBatcher:
             data=data,
             future=future,
             timestamp=request_start,
-            correlation_id=correlation_ids.get_correlation_id() or "unknown"
+            # correlation_id=correlation_ids.get_correlation_id() or "unknown"
         )
 
         await self.request_queue.put(request)
@@ -206,7 +206,7 @@ class DynamicBatcher:
         start_time = time.time()
         batch_data = [req.data for req in batch]
 
-        correlation_ids = [req.correlation_id for req in batch]
+        # correlation_ids = [req.correlation_id for req in batch]
 
         metrics.BATCH_SIZE.observe(len(batch))
         metrics.BATCH_WAIT_TIME.observe(wait_time)
@@ -218,7 +218,7 @@ class DynamicBatcher:
             worker_id=worker_id,
             batch_size=len(batch),
             wait_ms=round(wait_time * 1000, 1),
-            correlation_ids=correlation_ids,
+            # correlation_ids=correlation_ids,
         )
 
         try:
@@ -258,7 +258,7 @@ class DynamicBatcher:
             batch_size=len(batch),
             wait_ms=round(wait_time * 1000, 1),
             inference_ms=round(inference_time * 1000, 1),
-            correlation_ids=correlation_ids,
+            # correlation_ids=correlation_ids,
         )
 
         # return results to waiting futures

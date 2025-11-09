@@ -81,21 +81,6 @@ async def _embed_text(embed_request: EmbedRequest, request: Request):
         )
 
 
-async def _metrics_old(request: Request):
-    """
-    Expose metrics for monitoring (Prometheus format).
-
-    NOTE: Later, we'll use e.g., prometheus_client library for proper metrics.
-    """
-    _, batcher = _ensure_service_ready(request)
-    return {
-        "queue_size": batcher.request_queue.qsize(),
-        "inflight_batches": batcher.inflight_batches,
-        "num_workers": batcher.num_workers,
-        "max_batch_size": batcher.max_batch_size,
-    }
-
-
 async def _metrics(request: Request):
     """Expose metrics for monitoring (Prometheus format)"""
     _ensure_service_ready(request)
