@@ -1,3 +1,5 @@
+import logging
+import sys
 from typing import Any, Dict
 
 import structlog
@@ -35,6 +37,12 @@ def configure_structlog() -> None:
 
     Call this once at application startup, before creating the FastAPI app.
     """
+    logging.basicConfig(
+        format="%(message)s",
+        stream=sys.stdout,
+        level=logging.INFO,
+    )
+
     structlog.configure(
         processors=[
             # add correlation ID first, so it appears early in logs
