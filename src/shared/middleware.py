@@ -6,7 +6,6 @@ from shared import correlation_ids
 logger = structlog.get_logger(__name__)
 
 CORRELATION_ID_HEADER = "X-Correlation-ID"
-REQUEST_ID_HEADER = "X-Request-ID"  # alternative name some clients use
 
 
 class CorrelationIdASGIMiddleware:
@@ -43,17 +42,18 @@ class CorrelationIdASGIMiddleware:
 
         try:
             # ASGI headers are stored as a list of tuples
-            headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
+            headers = {
+                k.decode().lower(): v.decode() for k, v in scope.get("headers", [])
+            }
         except UnicodeDecodeError:
             headers = {}
 
-        correlation_id = (
-            headers.get(CORRELATION_ID_HEADER) or headers.get(REQUEST_ID_HEADER)
-        )
+        correlation_id = headers.get(CORRELATION_ID_HEADER.lower())
         if not correlation_id:
             correlation_id = correlation_ids.generate_correlation_id(prefix=self.prefix)
 
         correlation_ids.set_correlation_id(correlation_id)
+        structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
 
         async def _send_wrapper(message):
             if message["type"] == "http.response.start":
