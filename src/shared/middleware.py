@@ -1,7 +1,7 @@
 import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Scope, Receive, Send
 
 from shared import correlation_ids
 
@@ -24,7 +24,6 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
     2. If not present, generates a new one with "gw" or "inf" prefix
     3. Sets correlation ID in ContextVar for the request lifecycle
     4. Adds correlation ID to response headers
-    5. Logs request start/end with correlation ID
     """
 
     def __init__(self, app: ASGIApp, prefix: str = "gw"):
@@ -74,17 +73,19 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
             raise
 
 
-from starlette.types import ASGIApp, Scope, Receive, Send
-from fastapi import Request, Response
-
 class CorrelationIdASGIMiddleware:
     """
-    Lightweight ASGI middleware for correlation IDs.
+    Lightweight middleware to handle correlation IDs for request tracing.
 
-    - Extracts correlation ID from incoming request headers
-    - Generates a new one if missing
-    - Stores it in a ContextVar for the async request lifecycle
-    - Adds it to response headers
+    Extracts or generates correlation IDs for each request and ensures they're available
+    throughout the request lifecycle.
+
+    Behavior:
+    1. Extracts correlation ID from incoming request headers (X-Correlation-ID
+       or X-Request-ID)
+    2. If not present, generates a new one with "gw" or "inf" prefix
+    3. Sets correlation ID in ContextVar for the request lifecycle
+    4. Adds correlation ID to response headers
     """
 
     def __init__(self, app: ASGIApp, prefix: str = "gw"):
@@ -94,33 +95,42 @@ class CorrelationIdASGIMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         if scope["type"] != "http":
-            # Pass through non-HTTP requests (e.g., websocket)
+            # pass through non-HTTP requests (e.g., websocket)
             await self.app(scope, receive, send)
             return
 
-        # Convert headers to dict for easy access
-        headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
-        correlation_id = headers.get(CORRELATION_ID_HEADER.lower()) or headers.get(REQUEST_ID_HEADER.lower())
+        try:
+            headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
+        except UnicodeDecodeError:
+            headers = {}
 
+        correlation_id = (
+            headers.get(CORRELATION_ID_HEADER) or headers.get(REQUEST_ID_HEADER)
+        )
         if not correlation_id:
             correlation_id = correlation_ids.generate_correlation_id(prefix=self.prefix)
-            logger.debug("Generated new correlation ID", correlation_id=correlation_id)
-        else:
-            logger.debug("Using client-provided correlation ID", correlation_id=correlation_id)
 
-        # Set in ContextVar for this request
         correlation_ids.set_correlation_id(correlation_id)
 
         async def send_wrapper(message):
-            # Inject correlation ID into response headers
             if message["type"] == "http.response.start":
-                # ensure headers exist
-                message.setdefault("headers", [])
-                # append correlation ID header
-                message["headers"].append(
+                # remove existing correlation header to prevent duplicates
+                headers_list = [
+                    (k, v) for k, v in message.get("headers", [])
+                    if k.lower() != CORRELATION_ID_HEADER.lower().encode()
+                ]
+                headers_list.append(
                     (CORRELATION_ID_HEADER.encode(), correlation_id.encode())
                 )
+                message["headers"] = headers_list
             await send(message)
 
-        # Call the next app in the chain
-        await self.app(scope, receive, send_wrapper)
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as e:
+            logger.error(
+                "Request failed with exception",
+                error=str(e),
+                exc_info=e
+            )
+            raise
