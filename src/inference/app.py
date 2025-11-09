@@ -11,7 +11,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from inference.api import exception_handlers, routes, lifespan as lifespan_module
 from inference.models import huggingface
 from shared import logging_config
-from shared.middleware import CorrelationIdMiddleware
+from shared.middleware import CorrelationIdASGIMiddleware
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
@@ -100,7 +100,7 @@ def _create_app(
         redoc_url="/redoc",  # ReDoc
     )
 
-    app.add_middleware(CorrelationIdMiddleware, prefix="inf")
+    app.add_middleware(CorrelationIdASGIMiddleware, prefix="inf")
 
     exception_handlers.register_exception_handlers(app)
     routes.register_routes(app)

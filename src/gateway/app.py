@@ -11,7 +11,7 @@ from gateway.auth import rate_limiter as rate_limiter_module
 from gateway.auth.api_key_db import ApiKeyDB
 from gateway.auth.auth import AuthService
 from shared import logging_config
-from shared.middleware import CorrelationIdMiddleware
+from shared.middleware import CorrelationIdASGIMiddleware
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
@@ -144,7 +144,7 @@ def _create_app(
         redoc_url="/redoc",
     )
 
-    app.add_middleware(CorrelationIdMiddleware, prefix="gw")
+    app.add_middleware(CorrelationIdASGIMiddleware, prefix="gw")
 
     exception_handlers.register_exception_handlers(app)
     routes.register_routes(app, auth_service.verify_api_key)

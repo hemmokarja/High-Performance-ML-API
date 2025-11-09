@@ -72,3 +72,55 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
                 exc_info=e
             )
             raise
+
+
+from starlette.types import ASGIApp, Scope, Receive, Send
+from fastapi import Request, Response
+
+class CorrelationIdASGIMiddleware:
+    """
+    Lightweight ASGI middleware for correlation IDs.
+
+    - Extracts correlation ID from incoming request headers
+    - Generates a new one if missing
+    - Stores it in a ContextVar for the async request lifecycle
+    - Adds it to response headers
+    """
+
+    def __init__(self, app: ASGIApp, prefix: str = "gw"):
+        self.app = app
+        self.prefix = prefix
+        logger.info("CorrelationIdASGIMiddleware initialized")
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            # Pass through non-HTTP requests (e.g., websocket)
+            await self.app(scope, receive, send)
+            return
+
+        # Convert headers to dict for easy access
+        headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+        correlation_id = headers.get(CORRELATION_ID_HEADER.lower()) or headers.get(REQUEST_ID_HEADER.lower())
+
+        if not correlation_id:
+            correlation_id = correlation_ids.generate_correlation_id(prefix=self.prefix)
+            logger.debug("Generated new correlation ID", correlation_id=correlation_id)
+        else:
+            logger.debug("Using client-provided correlation ID", correlation_id=correlation_id)
+
+        # Set in ContextVar for this request
+        correlation_ids.set_correlation_id(correlation_id)
+
+        async def send_wrapper(message):
+            # Inject correlation ID into response headers
+            if message["type"] == "http.response.start":
+                # ensure headers exist
+                message.setdefault("headers", [])
+                # append correlation ID header
+                message["headers"].append(
+                    (CORRELATION_ID_HEADER.encode(), correlation_id.encode())
+                )
+            await send(message)
+
+        # Call the next app in the chain
+        await self.app(scope, receive, send_wrapper)
