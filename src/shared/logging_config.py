@@ -5,11 +5,7 @@ import structlog
 
 
 def configure_structlog() -> None:
-    """
-    Configure structlog with correlation ID support.
-
-    Call this once at application startup, before creating the FastAPI app.
-    """
+    # call this once at application startup, before creating the FastAPI app
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,

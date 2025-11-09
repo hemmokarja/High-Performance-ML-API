@@ -68,6 +68,24 @@ All protected endpoints require a bearer token:
 Authorization: Bearer sk_live_XXXXXXXXX
 ```
 
+### Request Tracing
+
+The gateway automatically manages correlation IDs for request tracking:
+
+- **Client-provided IDs**: Send `X-Correlation-ID` header to trace your requests
+- **Auto-generated IDs**: If not provided, the gateway generates one with prefix `gw-`
+- **Response headers**: All responses include the correlation ID for reference
+- **Log aggregation**: Use correlation IDs to trace requests across both services
+
+Example:
+```bash
+curl -X POST http://localhost:8000/v1/embed \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "X-Correlation-ID: my-request-123" \
+  -H "Content-Type: application/json" \
+  -d '{"input_text": "Hello"}'
+```
+
 ### Endpoints
 
 #### `POST /v1/embed`
@@ -88,6 +106,10 @@ Generate embeddings for input text.
   "model": "sentence-transformers/all-mpnet-base-v2",
 }
 ```
+
+**Headers:**
+- `X-Correlation-ID`: Request tracking ID (included in response)
+
 
 **Rate Limits:**
 - Default: 60 requests/minute, 1000 requests/hour
@@ -185,9 +207,30 @@ The gateway works fine without Redis - rate limiting will be automatically disab
 python -m gateway.app
 ```
 
+## Correlation IDs and Logging
+
+All requests are tracked with correlation IDs that flow through the entire system:
+
+**In your logs:**
+```json
+{
+  "correlation_id": "gw-123e4567-e89b-12d3-a456-426614174000",
+  "event": "Request forwarded to inference",
+  "method": "POST",
+  "path": "/v1/embed",
+  "user_id": "dev_user"
+}
+```
+
+**Benefits:**
+- Trace individual requests across gateway and inference services
+- Debug issues by searching logs for a specific correlation ID
+- Monitor request flow in distributed environments
+- Link client requests to backend processing
+
 ## Error Handling
 
-All errors return structured JSON responses:
+All errors return structured JSON responses with correlation IDs:
 
 ```json
 {

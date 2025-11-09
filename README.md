@@ -49,8 +49,9 @@ The core ML serving engine featuring:
 ### Shared Infrastructure
 
 Both services benefit from:
+- **Correlation ID Tracking**: Request tracing across service boundaries for distributed debugging and log aggregation
 - **Standardized Error Handling**: Consistent exception patterns across the API surface
-- **Structured Logging**: JSON-formatted logs suitable for centralized aggregation
+- **Structured Logging**: JSON-formatted logs with automatic correlation ID injection
 - **Docker Compose Orchestration**: Simple multi-container deployment with Redis and monitoring stack
 
 ## ⚡ Performance Optimizations
@@ -151,6 +152,12 @@ make up BYPASS_RATE_LIMITS=true
 make load-test-gateway
 ```
 
+### Monitoring Stack
+
+- **Prometheus**: Metrics collection with custom batching and rate limit metrics
+- **Grafana**: Pre-configured dashboards for latency, throughput, batch sizes, and more
+- **Structured Logs**: JSON format ready for ELK/Loki aggregation
+
 ## 📖 Documentation
 
 - **Gateway API Details**: See `src/gateway/README.md` for endpoint specifications, authentication flow, and rate limiting configuration
@@ -164,6 +171,7 @@ make load-test-gateway
 ├── src/
 │   ├── gateway/          # Public API: auth, rate limiting, routing
 │   ├── inference/        # ML service: batching, model serving, metrics
+│   ├── shared/           # Common utilities: correlation IDs, logging, errors
 │   ├── benchmarks/       # Locust load testing scenarios
 │   └── onnx_util/        # Model export utilities
 ├── monitoring/
@@ -178,8 +186,9 @@ make load-test-gateway
 
 Planned enhancements:
 
-- **Correlation IDs**: Request tracing across service boundaries for distributed debugging
 - **Circuit Breaker**: Fault isolation to prevent cascade failures when inference service degrades
+- **A/B Testing**: Traffic splitting for model comparison
+- **Response Caching**: Redis-backed cache for duplicate requests
 
 ## 📄 License
 
