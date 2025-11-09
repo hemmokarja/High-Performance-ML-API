@@ -100,7 +100,7 @@ def _create_app(
         redoc_url="/redoc",  # ReDoc
     )
 
-    app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(CorrelationIdMiddleware, prefix="inf")
 
     exception_handlers.register_exception_handlers(app)
     routes.register_routes(app)
