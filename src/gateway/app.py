@@ -10,9 +10,12 @@ from gateway.api import exception_handlers, routes, lifespan as lifespan_module
 from gateway.auth import rate_limiter as rate_limiter_module
 from gateway.auth.api_key_db import ApiKeyDB
 from gateway.auth.auth import AuthService
+from shared import logging_config
+from shared.middleware import CorrelationIdMiddleware
 
 load_dotenv()
 logger = structlog.get_logger(__name__)
+logging_config.configure_structlog()
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
@@ -140,6 +143,8 @@ def _create_app(
         docs_url="/docs",
         redoc_url="/redoc",
     )
+
+    app.add_middleware(CorrelationIdMiddleware, prefix="gw")
 
     exception_handlers.register_exception_handlers(app)
     routes.register_routes(app, auth_service.verify_api_key)
