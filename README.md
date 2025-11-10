@@ -4,7 +4,7 @@ A production-ready machine learning inference service demonstrating advanced ML 
 
 ## 🎯 Project Overview
 
-This project serves as a comprehensive demonstration of building scalable, high-performance ML inference systems. While I use a pre-trained BERT embedding model from Hugging Face as the example workload, the architecture is intentionally model-agnostic - you can adapt these components to serve virtually any model that benefits from batching with minimal code changes.
+This project serves as a demonstration of building scalable, high-performance ML inference systems. While I use a pre-trained BERT embedding model from Hugging Face as the example workload, the architecture is intentionally (nearly) model-agnostic - you can adapt these components to serve virtually any model that benefits from batching with minimal code changes.
 
 Think of this as a real-time embedding microservice capable of vectorizing user queries for downstream tasks like semantic search, but the patterns and optimizations apply broadly across ML serving scenarios.
 
