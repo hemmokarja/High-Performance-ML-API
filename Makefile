@@ -36,7 +36,7 @@ load-test-inference:
 		-P $(INFERENCE_PORT) \
 		-u 50 \
 		-r 50 \
-		-d "30s" \
+		-d "60s" \
 		-f src/benchmarks/locustfile_inference.py
 
 load-test-gateway:
@@ -45,7 +45,7 @@ load-test-gateway:
 		-P $(GATEWAY_PORT) \
 		-u 50 \
 		-r 50 \
-		-d "30s" \
+		-d "60s" \
 		-f src/benchmarks/locustfile_gateway.py
 
 onnx-export:

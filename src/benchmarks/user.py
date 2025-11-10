@@ -17,7 +17,7 @@ class BaseEmbedUser(HttpUser):
     # override these in subclasses
     endpoint = "/v1/embed"
     requires_auth = True
-    wait_time = constant_throughput(15)
+    wait_time = constant_throughput(10)
 
     def on_start(self):
         if self.requires_auth:
