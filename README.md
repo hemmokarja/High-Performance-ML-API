@@ -58,7 +58,7 @@ The following optimizations progressively improve inference performance:
 
 *All tests measured against the Gateway API at constant throughput of 500 RPS on a `g5.4xlarge` EC2 instance*
 
-`*` See "FP16 Conversion" section below for explanation why FP16 didn't improve latency or throughput here.
+`*` FP16 provides minimal additional benefit here, illustrating that optimization ROI depends on the active bottleneck. With small embedding models and modest batch sizes, the system is dominated by overhead rather than arithmetic compute. This pattern would likely shift with larger models and heavier loads.
 
 ### Asynchronous Dynamic Batching
 
