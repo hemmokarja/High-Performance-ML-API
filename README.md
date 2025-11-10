@@ -14,18 +14,6 @@ Think of this as a real-time embedding microservice capable of vectorizing user 
 - Building scalable API architectures with proper separation of concerns
 - Applying MLOps best practices including observability and load testing
 
-## 📊 Performance Benchmarks
-
-The following optimizations progressively improve inference performance:
-
-| Configuration | Latency (median) | Latency (p95) | Throughput (RPS) |
-|--------------|------------------|---------------|------------------|
-| CPU baseline | TBD | TBD | TBD |
-| GPU | TBD | TBD | TBD |
-| GPU + Dynamic Batching | TBD | TBD | TBD |
-| GPU + Batching + ONNX | TBD | TBD | TBD |
-| GPU + Batching + ONNX + FP16 | TBD | TBD | TBD |
-
 ## 🏗️ Architecture
 
 The system implements a two-tier architecture that separates public-facing concerns from inference workloads:
@@ -56,6 +44,22 @@ Both services benefit from:
 
 ## ⚡ Performance Optimizations
 
+### Performance Benchmarks
+
+The following optimizations progressively improve inference performance:
+
+| Configuration | Latency (median) | Latency (p95) | Throughput (RPS) |
+|--------------|------------------|---------------|------------------|
+| CPU baseline | 1600 | 1700 | 30 |
+| GPU | 490 | 520 | 101 |
+| GPU + Dynamic Batching | 110 | 130 | 438 |
+| GPU + Batching + ONNX | 26 | 52 | 497 |
+| GPU + Batching + ONNX + FP16 | 26 `*` | 42 | 497 |
+
+*All tests measured against the Gateway API at constant throughput of 500 RPS*
+
+`*` See "FP16 Conversion" section below for explanation why FP16 didn't improve latency or throughput here.
+
 ### Asynchronous Dynamic Batching
 
 The batching system uses a worker pool architecture that maintains high throughput while minimizing latency:
@@ -70,13 +74,15 @@ The batching system uses a worker pool architecture that maintains high throughp
 - **Max Batch Size**: Upper limit on requests grouped together (larger batches = better GPU utilization)
 - **Max Wait Time**: Maximum time to wait for additional requests (shorter wait = lower latency)
 
-This dual-threshold approach with concurrent collection and inference allows the system to maintain sub-second latencies even under high load, while achieving throughput improvements of 5x or more compared to serial processing.
+This dual-threshold approach with concurrent collection and inference allows the system to maintain sub-second latencies even under high load, while achieving latency and throughput improvements of nearly 5x compared to serial processing.
 
 ### ONNX Runtime with FP16 Precision
 
 Post-training optimizations include:
-- **ONNX Export**: Cross-platform inference runtime with graph optimizations
-- **FP16 Quantization**: Half-precision floating point reduces memory bandwidth and increases throughput on modern GPUs
+- **ONNX Export**: Cross-platform inference runtime with graph optimizations, like kernel fusion, constant folding, and memory layout improvements
+- **FP16 Conversion**: Half-precision floating point can reduce memory usage and increase throughput on modern GPUs, but in this toy project GPU utilization remains very low, so we don’t observe any speedup
+
+These post-training optimizations further reduce latency by almost 80% and improve throughput by 15%.
 
 ## 🚀 Getting Started
 
@@ -187,7 +193,7 @@ make load-test-gateway
 Planned enhancements:
 
 - **Circuit Breaker**: Fault isolation to prevent cascade failures when inference service degrades
-- **A/B Testing**: Traffic splitting for model comparison
+- **gRPC instead of HTTP/JSON**: Replace REST endpoints with gRPC for lower latency, type-safe interfaces, and efficient streaming over HTTP/2, enabling better performance under load
 - **Response Caching**: Redis-backed cache for duplicate requests
 
 ## 📄 License

@@ -4,7 +4,7 @@ INFERENCE_PORT?=8001
 GATEWAY_PORT?=8000
 MAX_BATCH_SIZE?=32
 BATCH_TIMEOUT?=0.01
-NUM_BATCHING_WORKERS?=2
+NUM_BATCHING_WORKERS?=4
 NUM_UVICORN_WORKERS?=4
 BYPASS_RATE_LIMITS?=false
 USE_ONNX?=true
@@ -35,8 +35,8 @@ load-test-inference:
 		-H localhost \
 		-P $(INFERENCE_PORT) \
 		-u 50 \
-		-r 10 \
-		-d "30s" \
+		-r 50 \
+		-d "60s" \
 		-f src/benchmarks/locustfile_inference.py
 
 load-test-gateway:
@@ -44,8 +44,8 @@ load-test-gateway:
 		-H localhost \
 		-P $(GATEWAY_PORT) \
 		-u 50 \
-		-r 10 \
-		-d "30s" \
+		-r 50 \
+		-d "60s" \
 		-f src/benchmarks/locustfile_gateway.py
 
 onnx-export:
