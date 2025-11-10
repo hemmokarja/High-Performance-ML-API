@@ -56,7 +56,7 @@ The following optimizations progressively improve inference performance:
 | GPU + Batching + ONNX | 26 | 52 | 497 |
 | GPU + Batching + ONNX + FP16 | 26 `*` | 42 | 497 |
 
-*All tests measured against the Gateway API at constant throughput of 500 RPS*
+*All tests measured against the Gateway API at constant throughput of 500 RPS on a `g5.4xlarge` EC2 instance*
 
 `*` See "FP16 Conversion" section below for explanation why FP16 didn't improve latency or throughput here.
 
